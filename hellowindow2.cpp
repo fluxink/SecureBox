@@ -12,8 +12,8 @@
 // The code originally used GLEW, I replaced it with Glad
 
 // Compile with vcpkg:
-// g++ hellowindow2.cpp -Iglad/include -I"D:\Pavel\vcpkg\installed\x64-windows\include" glad/src/gl.c -L"D:\Pavel\vcpkg\installed\x64-windows\lib" -lglfw3dll -lgdi32 -lopengl32 -o hellowindow2_direct.exe
-// Don't forget to copy glfw3.dll: copy "D:\Pavel\vcpkg\installed\x64-windows\bin\glfw3.dll" .
+// g++ hellowindow2.cpp -Iglad/include -I"C:\vcpkg\installed\x64-windows\include" glad/src/gl.c -L"C:\vcpkg\installed\x64-windows\lib" -lglfw3dll -lgdi32 -lopengl32 -o hellowindow2_direct.exe
+// Don't forget to copy glfw3.dll: copy "C:\vcpkg\installed\x64-windows\bin\glfw3.dll" .
 
 
 // Function prototypes
