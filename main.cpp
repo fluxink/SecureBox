@@ -285,9 +285,9 @@ uniform mat4 projection;
 
 void main()
 {
-    gl_Position = projection * vec4(aPos, 0.0, 1.0);
     color = aColor;
     cellPos = aCellPos;
+    gl_Position = projection * vec4(aPos, 0.0, 1.0);
 }
 )";
 
@@ -309,40 +309,10 @@ uniform vec2 gridSize;
 void main()
 {
     vec3 finalColor = color;
+    float shadowIntensity = 0.0;
+    float pressIntensity = 0.0;
     
-    // Enhanced next move highlighting with cross pattern and border
-    if (hasNextMove) {
-        float crossWidth = 0.15;
-        float borderWidth = 0.08;
-        
-        // Cross highlighting for row and column
-        bool inRow = abs(cellPos.y - nextMovePos.y) < 0.1;
-        bool inCol = abs(cellPos.x - nextMovePos.x) < 0.1;
-        bool isCenter = abs(cellPos.x - nextMovePos.x) < 0.1 && abs(cellPos.y - nextMovePos.y) < 0.1;
-        
-        if (inRow || inCol) {
-            // Animated pulse for cross
-            float pulse = 0.5 + 0.3 * sin(iTime * 3.0);
-            vec3 highlightColor = vec3(0.8, 0.8, 0.9);
-            
-            if (isCenter) {
-                // Center cell gets stronger highlight with border effect
-                float borderPulse = 0.6 + 0.4 * sin(iTime * 4.0);
-                finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), borderPulse * 0.4);
-                
-                // Add border effect using cell coordinates
-                vec2 cellFrac = fract(cellPos);
-                float borderMask = 1.0 - smoothstep(borderWidth, borderWidth + 0.02, 
-                    min(min(cellFrac.x, 1.0 - cellFrac.x), min(cellFrac.y, 1.0 - cellFrac.y)));
-                finalColor = mix(finalColor, vec3(0.9, 0.9, 1.0), borderMask * pulse);
-            } else {
-                // Row/column highlighting
-                finalColor = mix(finalColor, highlightColor, pulse * 0.25);
-            }
-        }
-    }
-    
-    // Column and Row wave animation effects
+    // Calculate press effects for this cell
     for (int i = 0; i < numEffects && i < 10; ++i) {
         vec2 effectPos = effectPositions[i];
         float effectTime = iTime - effectStartTimes[i];
@@ -357,52 +327,99 @@ void main()
             bool isEffectCenter = abs(cellPos.x - effectPos.x) < 0.1 && abs(cellPos.y - effectPos.y) < 0.1;
             
             if (inSameRow || inSameCol) {
-                // Smooth fade out over time
                 float timeFalloff = smoothstep(1.0, 0.0, progress);
                 
-                if (inSameRow && inSameCol) {
-                    // Center cell - bright white/yellow flash
-                    float centerPulse = sin(effectTime * 8.0) * 0.5 + 0.5;
-                    vec3 centerColor = vec3(1.0, 1.0, 0.9); // Bright white-yellow
-                    float centerIntensity = centerPulse * timeFalloff * 1.0; // Increased intensity
-                    
-                    finalColor = mix(finalColor, centerColor, centerIntensity);
+                if (isEffectCenter) {
+                    // Center cell - strongest press effect
+                    float centerPulse = sin(effectTime * 6.0) * 0.5 + 0.5;
+                    pressIntensity += centerPulse * timeFalloff * 0.3;
                 }
                 else if (inSameRow) {
-                    // Row wave effect - bright blue
+                    // Row press wave effect
                     float distanceFromCenter = abs(cellPos.x - effectPos.x);
-                    float waveSpeed = 4.0; // Slower wave for longer effect
-                    float wavePosition = progress * gridSize.x * 0.8; // Slower propagation
-                    
-                    // Create longer wave that travels along the row
-                    float waveIntensity = smoothstep(3.0, 0.0, abs(distanceFromCenter - wavePosition)); // Longer wave
-                    
-                    // Bright blue color for row effect
-                    vec3 rowColor = vec3(0.2, 0.5, 1.0);
-                    float rowEffect = waveIntensity * timeFalloff * 0.95; // Much stronger effect
-                    
-                    finalColor = mix(finalColor, rowColor, rowEffect);
+                    float wavePosition = progress * gridSize.x * 0.6;
+                    float waveIntensity = smoothstep(2.5, 0.0, abs(distanceFromCenter - wavePosition));
+                    pressIntensity += waveIntensity * timeFalloff * 0.15;
                 }
                 else if (inSameCol) {
-                    // Column wave effect - bright green
+                    // Column press wave effect
                     float distanceFromCenter = abs(cellPos.y - effectPos.y);
-                    float waveSpeed = 4.0; // Slower wave for longer effect
-                    float wavePosition = progress * gridSize.y * 0.8; // Slower propagation
-                    
-                    // Create longer wave that travels along the column
-                    float waveIntensity = smoothstep(3.0, 0.0, abs(distanceFromCenter - wavePosition)); // Longer wave
-                    
-                    // Bright green color for column effect
-                    vec3 colColor = vec3(0.2, 0.5, 1.0);
-                    float colEffect = waveIntensity * timeFalloff * 0.95; // Much stronger effect
-                    
-                    finalColor = mix(finalColor, colColor, colEffect);
+                    float wavePosition = progress * gridSize.y * 0.6;
+                    float waveIntensity = smoothstep(2.5, 0.0, abs(distanceFromCenter - wavePosition));
+                    pressIntensity += waveIntensity * timeFalloff * 0.15;
                 }
             }
         }
     }
     
-    // Clamp final color
+    // Create cell shrinking effect using fragment coordinates
+    vec2 cellFrac = fract(cellPos + 0.5) - 0.5; // Cell coordinates from -0.5 to 0.5
+    
+    if (pressIntensity > 0.0) {
+        // Calculate shrink factor
+        float shrinkFactor = 1.0 - pressIntensity * 0.25; // Shrink up to 25%
+        shrinkFactor = max(shrinkFactor, 0.6); // Minimum 60% of original size
+        
+        // Scale cell coordinates to create shrinking effect
+        vec2 scaledCellFrac = cellFrac / shrinkFactor;
+        
+        // If outside the shrunken cell area, discard or make transparent
+        if (abs(scaledCellFrac.x) > 0.45 || abs(scaledCellFrac.y) > 0.45) {
+            // Create background color for the "pressed down" area
+            vec3 backgroundColor = color * 0.3; // Dark background
+            finalColor = backgroundColor;
+            shadowIntensity = pressIntensity * 0.8;
+        } else {
+            // Inside the shrunken cell - apply press effects
+            shadowIntensity = pressIntensity * 0.6;
+            
+            // Add depth shading based on distance from center
+            float distanceFromCenter = length(scaledCellFrac) * 2.0;
+            float depthShading = smoothstep(0.0, 1.0, distanceFromCenter);
+            finalColor = mix(finalColor, finalColor * 0.7, pressIntensity * depthShading * 0.4);
+        }
+    }
+    
+    // Enhanced next move highlighting
+    if (hasNextMove) {
+        float borderWidth = 0.08;
+        
+        bool inRow = abs(cellPos.y - nextMovePos.y) < 0.1;
+        bool inCol = abs(cellPos.x - nextMovePos.x) < 0.1;
+        bool isCenter = abs(cellPos.x - nextMovePos.x) < 0.1 && abs(cellPos.y - nextMovePos.y) < 0.1;
+        
+        if (inRow || inCol) {
+            float pulse = 0.5 + 0.3 * sin(iTime * 3.0);
+            vec3 highlightColor = vec3(0.8, 0.8, 0.9);
+            
+            if (isCenter) {
+                float borderPulse = 0.6 + 0.4 * sin(iTime * 4.0);
+                finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), borderPulse * 0.4);
+                
+                vec2 cellFracAbs = abs(cellFrac);
+                float borderMask = 1.0 - smoothstep(borderWidth, borderWidth + 0.02, 
+                    min(0.5 - cellFracAbs.x, 0.5 - cellFracAbs.y));
+                finalColor = mix(finalColor, vec3(0.9, 0.9, 1.0), borderMask * pulse);
+            } else {
+                finalColor = mix(finalColor, highlightColor, pulse * 0.25);
+            }
+        }
+    }
+    
+    // Apply shadow effects
+    if (shadowIntensity > 0.0) {
+        // Create inner shadow effect
+        float edgeDistance = 1.0 - 2.0 * max(abs(cellFrac.x), abs(cellFrac.y));
+        float shadowGradient = smoothstep(0.0, 0.8, edgeDistance);
+        float shadow = shadowIntensity * (1.0 - shadowGradient * 0.7);
+        
+        finalColor = mix(finalColor, finalColor * 0.5, shadow);
+        
+        // Add bevel effect
+        float bevelEffect = shadowIntensity * (1.0 - smoothstep(0.7, 1.0, edgeDistance));
+        finalColor = mix(finalColor, finalColor * 0.6, bevelEffect * 0.3);
+    }
+    
     finalColor = clamp(finalColor, 0.0, 1.0);
     FragColor = vec4(finalColor, 1.0);
 }
