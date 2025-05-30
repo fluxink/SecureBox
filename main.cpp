@@ -369,6 +369,16 @@ float getHeight(vec2 p) {
     return mix(MinHeight, MaxHeight, clamp(h, 0.0, 1.0));
 }
 
+vec3 getBaseColor(float val) {
+    if (val < 0.33) {
+        return vec3(0.2, 0.8, 0.2); // Green for 0
+    } else if (val < 0.67) {
+        return vec3(0.9, 0.8, 0.2); // Yellow for 1
+    } else {
+        return vec3(0.9, 0.2, 0.2); // Red for 2
+    }
+}
+
 vec3 getColor(vec2 p) {
     vec2 gridCoord = (p + gridSize * 0.5) / gridSize;
     
@@ -376,28 +386,78 @@ vec3 getColor(vec2 p) {
         return vec3(0.1, 0.1, 0.2);
     }
     
-    float value = texture(heightMap, gridCoord).g; // Use green channel for cell values
+    float currentValue = texture(heightMap, gridCoord).g;
     
-    vec3 baseColor;
-    if (value < 0.33) {
-        baseColor = vec3(0.2, 0.8, 0.2); // Green for 0
-    } else if (value < 0.67) {
-        baseColor = vec3(0.9, 0.8, 0.2); // Yellow for 1
-    } else {
-        baseColor = vec3(0.9, 0.2, 0.2); // Red for 2
+    vec3 targetColor = getBaseColor(currentValue);
+    vec3 finalColor = targetColor;
+    
+    for (int i = 0; i < numEffects && i < 10; ++i) {
+        vec2 effectPos = effectPositions[i];
+        float effectTime = iTime - effectStartTimes[i];
+        float duration = effectDurations[i];
+        
+        if (effectTime >= 0.0 && effectTime <= duration) {
+            // Convert effect position to grid coordinates
+            vec2 effectGridCoord = (effectPos + 0.5) / gridSize + 0.5;
+            
+            // Check if this cell is affected by the toggle (cross pattern)
+            bool isAffected = false;
+            float cellX = floor(gridCoord.x * gridSize.x);
+            float cellY = floor(gridCoord.y * gridSize.y);
+            float effectCellX = floor(effectPos.x);
+            float effectCellY = floor(effectPos.y);
+            
+            // Cell is affected if it's in the same row or column as the toggle
+            if (abs(cellX - effectCellX) < 0.5 || abs(cellY - effectCellY) < 0.5) {
+                isAffected = true;
+            }
+            
+            if (isAffected) {
+                // Calculate transition progress (0.0 to 1.0)
+                float colorTransitionDuration = min(duration * 0.3, 0.8); // 30% of effect duration, max 0.8s
+                float progress = clamp(effectTime / colorTransitionDuration, 0.0, 1.0);
+                
+                // Smooth easing function for natural transition
+                float easedProgress = smoothstep(0.0, 1.0, progress);
+                easedProgress = easedProgress * easedProgress * (3.0 - 2.0 * easedProgress); // Smootherstep
+                
+                // Calculate the previous value (assume it was different)
+                // Since we don't have explicit previous state, we interpolate based on the assumption
+                // that the cell value changed during this effect
+                float prevValue = currentValue;
+                
+                // Estimate previous value based on toggle logic (value cycles 0->1->2->0)
+                if (currentValue < 0.33) {
+                    prevValue = 0.67; // Was 2, now 0
+                } else if (currentValue < 0.67) {
+                    prevValue = 0.0;  // Was 0, now 1
+                } else {
+                    prevValue = 0.33; // Was 1, now 2
+                }
+                
+                vec3 previousColor = getBaseColor(prevValue);
+                
+                // Interpolate between previous and current color
+                finalColor = mix(previousColor, targetColor, easedProgress);
+                
+                // Add a subtle glow effect during transition
+                float glowIntensity = sin(progress * 3.14159) * 0.2;
+                finalColor += vec3(glowIntensity);
+                
+                break; // Use the most recent effect for this cell
+            }
+        }
     }
-    
-    // Add highlight for next move
     if (hasNextMove) {
         vec2 worldNextPos = (nextMovePos - gridSize * 0.5);
         float distToNext = length(p - worldNextPos);
         if (distToNext < 0.6) {
-            float pulse = 0.5 + 0.5 * sin(TIME * 4.0);
-            baseColor = mix(baseColor, vec3(1.0, 1.0, 1.0), pulse * 0.3);
+            float pulse = 0.5 + 0.5 * sin(iTime * 4.0);
+            finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), pulse * 0.3);
         }
     }
     
-    return baseColor;
+    return clamp(finalColor, 0.0, 1.0);
 }
 
 float cellTrace(vec3 ro, vec3 rd, float near, float far, out int iter, out vec2 cell, out vec2 boxi, out vec3 boxn) {
