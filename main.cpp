@@ -7,10 +7,12 @@
 #include <string>
 #include <thread>
 #include <chrono>
+#include <mutex>
 
 // OpenGL headers
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
+#include <algorithm>
 
 //===========================================================================
 // # PROBLEM: Total Unlocking of the SecureBox
@@ -245,13 +247,35 @@ private:
     GLuint VAO, VBO;
     int windowWidth, windowHeight;
     bool shouldClose;
+    bool spacePressed;
+    
+    // Animation state
+    float currentTime;
+    std::vector<std::vector<uint8_t>> currentBoxState;
+    std::mutex stateMutex;
+    
+    // Multiple animation effects
+    struct AnimationEffect {
+        int step;
+        int toggleX, toggleY;
+        float startTime;
+        float duration;
+        bool active;
+        
+        AnimationEffect(int s, int x, int y, float start, float dur = 1.0f) 
+            : step(s), toggleX(x), toggleY(y), startTime(start), duration(dur), active(true) {}
+    };
+    
+    std::vector<AnimationEffect> activeEffects;
     
     const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec2 aPos;
 layout (location = 1) in vec3 aColor;
+layout (location = 2) in vec2 aCellPos;
 
 out vec3 color;
+out vec2 cellPos;
 
 uniform mat4 projection;
 
@@ -259,22 +283,68 @@ void main()
 {
     gl_Position = projection * vec4(aPos, 0.0, 1.0);
     color = aColor;
+    cellPos = aCellPos;
 }
 )";
 
     const char* fragmentShaderSource = R"(
 #version 330 core
 in vec3 color;
+in vec2 cellPos;
 out vec4 FragColor;
+
+uniform float iTime;
+uniform int numEffects;
+uniform vec2 effectPositions[10];  // Max 10 concurrent effects
+uniform float effectStartTimes[10];
+uniform float effectDurations[10];
 
 void main()
 {
-    FragColor = vec4(color, 1.0);
+    vec3 finalColor = color;
+    
+    for (int i = 0; i < numEffects && i < 10; ++i) {
+        vec2 effectPos = effectPositions[i];
+        float effectTime = iTime - effectStartTimes[i];
+        float duration = effectDurations[i];
+        
+        if (effectTime >= 0.0 && effectTime <= duration) {
+            float dist = distance(cellPos, effectPos);
+            float progress = effectTime / duration;
+            
+            // Ripple effect
+            float rippleSpeed = 8.0;
+            float rippleFreq = 4.0;
+            float wave = sin(effectTime * rippleSpeed - dist * rippleFreq) * (1.0 - progress) * 0.3 + 1.0;
+            
+            // Expanding ring effect
+            float ringRadius = progress * 5.0;
+            float ringWidth = 0.5;
+            if (abs(dist - ringRadius) < ringWidth) {
+                float ringIntensity = (1.0 - abs(dist - ringRadius) / ringWidth) * (1.0 - progress);
+                finalColor += vec3(0.3, 0.3, 0.8) * ringIntensity;
+            }
+            
+            // Pulse effect for affected cells (cross pattern)
+            if (abs(cellPos.x - effectPos.x) < 0.1 || abs(cellPos.y - effectPos.y) < 0.1) {
+                float pulse = sin(effectTime * 12.0) * (1.0 - progress) * 0.4 + 1.0;
+                finalColor *= pulse;
+            }
+            
+            // Apply wave effect
+            finalColor *= wave;
+        }
+    }
+    
+    // Clamp color values
+    finalColor = clamp(finalColor, 0.0, 1.0);
+    FragColor = vec4(finalColor, 1.0);
 }
 )";
 
 public:
-    OpenGLRenderer() : window(nullptr), shaderProgram(0), VAO(0), VBO(0), shouldClose(false) {}
+    OpenGLRenderer() : window(nullptr), shaderProgram(0), VAO(0), VBO(0), 
+                      shouldClose(false), spacePressed(false), currentTime(0.0f) {}
     
     bool initialize(int width, int height)
     {
@@ -327,19 +397,99 @@ public:
         return true;
     }
 
-    void renderBox(const SecureBox &box, const std::string &title, int step = -1, int toggleX = -1, int toggleY = -1)
+    // Render single frame with events
+    void renderFrame()
     {
-        if (!window || glfwWindowShouldClose(window))
-            return;
-
+        auto currentTimePoint = std::chrono::high_resolution_clock::now();
+        static auto startTime = currentTimePoint;
+        auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(currentTimePoint - startTime);
+        currentTime = elapsed.count() / 1000000.0f;
+        
+        // Clean up expired effects
+        activeEffects.erase(
+            std::remove_if(activeEffects.begin(), activeEffects.end(),
+                [this](const AnimationEffect& effect) {
+                    return (currentTime - effect.startTime) > effect.duration;
+                }),
+            activeEffects.end()
+        );
+        
         glfwPollEvents();
+        render();
+    }
+
+    void updateBoxState(const SecureBox &box)
+    {
+        currentBoxState = box.getState();
+    }
+
+    void addAnimationEffect(int step, int toggleX, int toggleY, float duration = 1.5f)
+    {
+        activeEffects.emplace_back(step, toggleX, toggleY, currentTime, duration);
+        
+        // Limit number of concurrent effects
+        if (activeEffects.size() > 10) {
+            activeEffects.erase(activeEffects.begin());
+        }
+        
+        std::cout << "Added animation effect at (" << toggleX << ", " << toggleY << "), total effects: " << activeEffects.size() << std::endl;
+    }
+
+    void clearAllEffects()
+    {
+        activeEffects.clear();
+    }
+
+    bool waitForSpace()
+    {
+        spacePressed = false;
+        
+        while (!shouldCloseWindow() && !spacePressed)
+        {
+            renderFrame();
+            std::this_thread::sleep_for(std::chrono::milliseconds(16));
+        }
+        
+        bool result = spacePressed;
+        spacePressed = false;
+        return result && !shouldCloseWindow();
+    }
+
+    bool checkSpacePressed()
+    {
+        bool result = spacePressed;
+        if (result) {
+            spacePressed = false;
+            std::cout << "Space detected and consumed" << std::endl;
+        }
+        return result;
+    }
+
+    bool shouldCloseWindow()
+    {
+        return window && (glfwWindowShouldClose(window) || shouldClose);
+    }
+
+    void cleanup()
+    {
+        if (VAO) glDeleteVertexArrays(1, &VAO);
+        if (VBO) glDeleteBuffers(1, &VBO);
+        if (shaderProgram) glDeleteProgram(shaderProgram);
+        if (window) glfwDestroyWindow(window);
+        glfwTerminate();
+    }
+
+private:
+    void render()
+    {
+        if (currentBoxState.empty())
+            return;
 
         glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
         glClear(GL_COLOR_BUFFER_BIT);
 
-        auto state = box.getState();
-        uint32_t width = box.getWidth();
-        uint32_t height = box.getHeight();
+        uint32_t width = currentBoxState[0].size();
+        uint32_t height = currentBoxState.size();
 
         float cellSize = std::min(1.6f / width, 1.6f / height);
         float startX = -(width * cellSize) / 2.0f;
@@ -356,7 +506,7 @@ public:
                 float top = startY - y * cellSize;
                 float bottom = top - cellSize * 0.9f;
 
-                uint8_t value = state[y][x];
+                uint8_t value = currentBoxState[y][x];
                 float r, g, b;
                 
                 if (value == 0) {
@@ -367,32 +517,59 @@ public:
                     r = 1.0f; g = 0.0f; b = 0.0f; // Red
                 }
 
-                // Highlight current toggle position
-                if (step >= 0 && x == toggleX && y == toggleY) {
-                    r = std::min(1.0f, r + 0.3f);
-                    g = std::min(1.0f, g + 0.3f);
-                    b = std::min(1.0f, b + 0.3f);
-                }
+                float cellX = (float)x;
+                float cellY = (float)y;
 
                 // Two triangles per cell
                 float cellVertices[] = {
-                    left,  bottom, r, g, b,
-                    right, bottom, r, g, b,
-                    right, top,    r, g, b,
+                    left,  bottom, r, g, b, cellX, cellY,
+                    right, bottom, r, g, b, cellX, cellY,
+                    right, top,    r, g, b, cellX, cellY,
                     
-                    left,  bottom, r, g, b,
-                    right, top,    r, g, b,
-                    left,  top,    r, g, b
+                    left,  bottom, r, g, b, cellX, cellY,
+                    right, top,    r, g, b, cellX, cellY,
+                    left,  top,    r, g, b, cellX, cellY
                 };
 
-                for (int i = 0; i < 30; ++i)
+                for (int i = 0; i < 42; ++i)
                     vertices.push_back(cellVertices[i]);
             }
         }
 
         glUseProgram(shaderProgram);
         
-        // Set projection matrix (orthographic)
+        // Set time uniform
+        GLuint timeLoc = glGetUniformLocation(shaderProgram, "iTime");
+        glUniform1f(timeLoc, currentTime);
+        
+        // Set effect uniforms
+        int numEffects = std::min((int)activeEffects.size(), 10);
+        GLuint numEffectsLoc = glGetUniformLocation(shaderProgram, "numEffects");
+        glUniform1i(numEffectsLoc, numEffects);
+        
+        if (numEffects > 0) {
+            std::vector<float> positions(20, 0.0f); // 10 effects * 2 coordinates
+            std::vector<float> startTimes(10, 0.0f);
+            std::vector<float> durations(10, 1.0f);
+            
+            for (int i = 0; i < numEffects; ++i) {
+                positions[i * 2] = (float)activeEffects[i].toggleX;
+                positions[i * 2 + 1] = (float)activeEffects[i].toggleY;
+                startTimes[i] = activeEffects[i].startTime;
+                durations[i] = activeEffects[i].duration;
+            }
+            
+            GLuint positionsLoc = glGetUniformLocation(shaderProgram, "effectPositions");
+            glUniform2fv(positionsLoc, 10, positions.data());
+            
+            GLuint startTimesLoc = glGetUniformLocation(shaderProgram, "effectStartTimes");
+            glUniform1fv(startTimesLoc, 10, startTimes.data());
+            
+            GLuint durationsLoc = glGetUniformLocation(shaderProgram, "effectDurations");
+            glUniform1fv(durationsLoc, 10, durations.data());
+        }
+        
+        // Set projection matrix
         float projection[16] = {
             1.0f, 0.0f, 0.0f, 0.0f,
             0.0f, 1.0f, 0.0f, 0.0f,
@@ -407,51 +584,31 @@ public:
         glBindBuffer(GL_ARRAY_BUFFER, VBO);
         glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
 
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)0);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 5 * sizeof(float), (void*)(2 * sizeof(float)));
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(2 * sizeof(float)));
         glEnableVertexAttribArray(1);
+        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(5 * sizeof(float)));
+        glEnableVertexAttribArray(2);
 
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 5);
+        glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 7);
 
         glfwSwapBuffers(window);
     }
 
-    bool shouldCloseWindow()
-    {
-        return window && (glfwWindowShouldClose(window) || shouldClose);
-    }
-
-    void waitForSpace()
-    {
-        if (!window) return;
-        
-        shouldClose = false;
-        while (!shouldCloseWindow())
-        {
-            glfwPollEvents();
-            std::this_thread::sleep_for(std::chrono::milliseconds(16));
-        }
-        shouldClose = false;
-    }
-
-    void cleanup()
-    {
-        if (VAO) glDeleteVertexArrays(1, &VAO);
-        if (VBO) glDeleteBuffers(1, &VBO);
-        if (shaderProgram) glDeleteProgram(shaderProgram);
-        if (window) glfwDestroyWindow(window);
-        glfwTerminate();
-    }
-
-private:
     static void keyCallback(GLFWwindow* window, int key, int scancode, int action, int mode)
     {
         OpenGLRenderer* renderer = static_cast<OpenGLRenderer*>(glfwGetWindowUserPointer(window));
         if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
-            glfwSetWindowShouldClose(window, GL_TRUE);
-        if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+        {
             renderer->shouldClose = true;
+            glfwSetWindowShouldClose(window, GL_TRUE);
+        }
+        if (key == GLFW_KEY_SPACE && action == GLFW_PRESS)
+        {
+            renderer->spacePressed = true;
+            std::cout << "Space key pressed!" << std::endl;
+        }
     }
 
     bool createShaders()
@@ -502,7 +659,7 @@ private:
 };
 
 //================================================================================
-// Main solving algorithm with dual rendering support
+// Modified main solving algorithm - single threaded with animation queue
 //================================================================================
 
 bool openBox(SecureBox &box, bool useOpenGL)
@@ -512,6 +669,7 @@ bool openBox(SecureBox &box, bool useOpenGL)
     int totalCells = width * height;
 
     OpenGLRenderer* renderer = nullptr;
+    
     if (useOpenGL)
     {
         renderer = new OpenGLRenderer();
@@ -526,9 +684,15 @@ bool openBox(SecureBox &box, bool useOpenGL)
 
     if (useOpenGL && renderer)
     {
-        renderer->renderBox(box, "Initial SecureBox State");
+        renderer->updateBoxState(box);
         std::cout << "Press SPACE to continue, ESC to exit..." << std::endl;
-        renderer->waitForSpace();
+        
+        if (!renderer->waitForSpace())
+        {
+            renderer->cleanup();
+            delete renderer;
+            return false;
+        }
     }
     else
     {
@@ -537,7 +701,7 @@ bool openBox(SecureBox &box, bool useOpenGL)
         waitForEnter("Press Enter to start solving...");
     }
 
-    // Create effect matrix
+    // Create effect matrix and solve
     std::vector<std::vector<int>> effectMatrix(totalCells, std::vector<int>(totalCells, 0));
 
     for (int toggleY = 0; toggleY < (int)height; ++toggleY)
@@ -577,61 +741,102 @@ bool openBox(SecureBox &box, bool useOpenGL)
     std::cout << "Solving linear system..." << std::endl;
     std::vector<int> solution = solveLinearSystem(effectMatrix, target);
 
-    int step = 1;
-    bool foundMoves = false;
-
+    // Collect all moves
+    struct Move {
+        int x, y, count;
+    };
+    std::vector<Move> moves;
+    
     for (int y = 0; y < (int)height; ++y)
     {
         for (int x = 0; x < (int)width; ++x)
         {
             int index = y * width + x;
             int toggleCount = solution[index];
+            if (toggleCount > 0) {
+                moves.push_back({x, y, toggleCount});
+            }
+        }
+    }
 
-            if (toggleCount > 0)
-                foundMoves = true;
+    if (moves.empty())
+    {
+        std::cout << "Box was already unlocked or solution requires no moves!" << std::endl;
+        if (renderer) {
+            renderer->waitForSpace();
+            renderer->cleanup();
+            delete renderer;
+        }
+        return true;
+    }
 
-            for (int t = 0; t < toggleCount; ++t)
+    int step = 1;
+    size_t currentMove = 0;
+    int currentToggleCount = 0;
+
+    if (useOpenGL && renderer)
+    {
+        std::cout << "Press SPACE to apply next toggle (rapid presses create overlapping effects)" << std::endl;
+        
+        // Main interaction loop
+        while (currentMove < moves.size() && !renderer->shouldCloseWindow())
+        {
+            // Render frame and check for input
+            renderer->renderFrame();
+            
+            if (renderer->checkSpacePressed())
             {
-                if (useOpenGL && renderer)
+                auto& move = moves[currentMove];
+                
+                std::cout << "Step " << step++ << ": Toggle(" << move.x << ", " << move.y << ")" << std::endl;
+                
+                // Add animation effect (non-blocking)
+                renderer->addAnimationEffect(step, move.x, move.y, 1.5f);
+                
+                // Apply toggle
+                box.toggle(move.x, move.y);
+                renderer->updateBoxState(box);
+                
+                currentToggleCount++;
+                if (currentToggleCount >= move.count)
                 {
-                    if (renderer->shouldCloseWindow())
-                    {
-                        renderer->cleanup();
-                        delete renderer;
-                        return false;
-                    }
-                    
-                    std::cout << "Step " << step++ << ": Toggle(" << x << ", " << y << ") - Press SPACE to continue" << std::endl;
-                    box.toggle(x, y);
-                    renderer->renderBox(box, "SecureBox State After Toggle", step, x, y);
-                    
-                    if (!box.isLocked())
-                    {
-                        std::cout << "SUCCESS! Box is now unlocked!" << std::endl;
-                        renderer->waitForSpace();
-                        renderer->cleanup();
-                        delete renderer;
-                        return true;
-                    }
-                    renderer->waitForSpace();
+                    currentMove++;
+                    currentToggleCount = 0;
                 }
-                else
+                
+                if (!box.isLocked())
                 {
-                    clearScreen();
-                    std::cout << "Step " << step++ << ": Toggle(" << x << ", " << y << ")" << std::endl;
-                    box.toggle(x, y);
-                    displayBoxConsole(box, "SecureBox State After Toggle");
-
-                    if (box.isLocked())
-                        waitForEnter();
-                    else
-                    {
-                        std::cout << "SUCCESS! Box is now unlocked!" << std::endl;
-                        waitForEnter("Press Enter to finish...");
-                        return true;
-                    }
+                    std::cout << "SUCCESS! Box is now unlocked!" << std::endl;
+                    renderer->waitForSpace();
+                    break;
                 }
             }
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
+        }
+    }
+    else
+    {
+        // Console mode - sequential
+        for (const auto& move : moves)
+        {
+            for (int t = 0; t < move.count; ++t)
+            {
+                clearScreen();
+                std::cout << "Step " << step++ << ": Toggle(" << move.x << ", " << move.y << ")" << std::endl;
+                box.toggle(move.x, move.y);
+                displayBoxConsole(box, "SecureBox State After Toggle");
+
+                if (box.isLocked())
+                    waitForEnter();
+                else
+                {
+                    std::cout << "SUCCESS! Box is now unlocked!" << std::endl;
+                    waitForEnter("Press Enter to finish...");
+                    break;
+                }
+            }
+            if (!box.isLocked()) break;
         }
     }
 
@@ -639,16 +844,6 @@ bool openBox(SecureBox &box, bool useOpenGL)
     {
         renderer->cleanup();
         delete renderer;
-    }
-
-    if (!foundMoves)
-    {
-        if (!useOpenGL)
-        {
-            clearScreen();
-            std::cout << "Box was already unlocked or solution requires no moves!" << std::endl;
-            displayBoxConsole(box, "Final SecureBox State");
-        }
     }
 
     return !box.isLocked();
