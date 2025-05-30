@@ -8,6 +8,7 @@
 #include <thread>
 #include <chrono>
 #include <mutex>
+#include <array>
 
 // OpenGL headers
 #include <glad/gl.h>
@@ -248,6 +249,9 @@ private:
     int windowWidth, windowHeight;
     bool shouldClose;
     bool spacePressed;
+
+    std::array<float, 2> nextMovePos;
+    bool hasNextMove;
     
     // Animation state
     float currentTime;
@@ -298,10 +302,17 @@ uniform int numEffects;
 uniform vec2 effectPositions[10];  // Max 10 concurrent effects
 uniform float effectStartTimes[10];
 uniform float effectDurations[10];
+uniform vec2 nextMovePos;          // Position of the next move to highlight
+uniform bool hasNextMove;          // Whether we have a next move to highlight
 
 void main()
 {
+    // Base cell color
     vec3 finalColor = color;
+        
+    // Global wave/ripple effects across the entire grid
+    float globalWaveEffect = 0.0;
+    float globalRingEffect = 0.0;
     
     for (int i = 0; i < numEffects && i < 10; ++i) {
         vec2 effectPos = effectPositions[i];
@@ -309,34 +320,49 @@ void main()
         float duration = effectDurations[i];
         
         if (effectTime >= 0.0 && effectTime <= duration) {
-            float dist = distance(cellPos, effectPos);
             float progress = effectTime / duration;
+            float falloff = smoothstep(1.0, 0.0, progress); // Fade out over time
+            float dist = distance(cellPos, effectPos);
             
-            // Ripple effect
-            float rippleSpeed = 8.0;
-            float rippleFreq = 4.0;
-            float wave = sin(effectTime * rippleSpeed - dist * rippleFreq) * (1.0 - progress) * 0.3 + 1.0;
+            // Global wave ripple effect using mask approach
+            float waveSpeed = 6.0;
+            float waveRadius = progress * 10.0;
+            float waveWidth = 3.0;
             
-            // Expanding ring effect
+            // Create smooth ripple mask based on distance
+            float waveMask = smoothstep(waveWidth, 0.0, abs(dist - waveRadius)) * falloff;
+            globalWaveEffect += waveMask * 0.3;
+            
+            // Expanding ring effect (as a separate visual layer)
             float ringRadius = progress * 5.0;
-            float ringWidth = 0.5;
-            if (abs(dist - ringRadius) < ringWidth) {
-                float ringIntensity = (1.0 - abs(dist - ringRadius) / ringWidth) * (1.0 - progress);
-                finalColor += vec3(0.3, 0.3, 0.8) * ringIntensity;
-            }
+            float ringWidth = 0.4;
+            float ringMask = smoothstep(ringWidth, 0.0, abs(dist - ringRadius)) * falloff;
+            globalRingEffect += ringMask * 0.6;
             
-            // Pulse effect for affected cells (cross pattern)
+            // Enhanced highlight for affected row/column cells
             if (abs(cellPos.x - effectPos.x) < 0.1 || abs(cellPos.y - effectPos.y) < 0.1) {
-                float pulse = sin(effectTime * 12.0) * (1.0 - progress) * 0.4 + 1.0;
-                finalColor *= pulse;
+                float pulseFreq = 8.0;
+                float pulse = sin(effectTime * pulseFreq) * falloff * 0.3 + 0.3;
+                finalColor = mix(finalColor, vec3(1.0, 1.0, 0.8), pulse);
             }
-            
-            // Apply wave effect
-            finalColor *= wave;
+        }
+    }
+
+    // Highlight the row and column of the next move with a subtle effect
+    if (hasNextMove) {
+        float highlightIntensity = 0.15;
+        if (abs(cellPos.x - nextMovePos.x) < 0.1 || abs(cellPos.y - nextMovePos.y) < 0.1) {
+            finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), highlightIntensity);
         }
     }
     
-    // Clamp color values
+    // Apply global wave effect as a modifier
+    finalColor *= (1.0 + globalWaveEffect);
+    
+    // Apply ring effect as an overlay
+    finalColor += vec3(0.3, 0.5, 1.0) * globalRingEffect;
+    
+    // Clamp the final color
     finalColor = clamp(finalColor, 0.0, 1.0);
     FragColor = vec4(finalColor, 1.0);
 }
@@ -344,7 +370,8 @@ void main()
 
 public:
     OpenGLRenderer() : window(nullptr), shaderProgram(0), VAO(0), VBO(0), 
-                      shouldClose(false), spacePressed(false), currentTime(0.0f) {}
+                 shouldClose(false), spacePressed(false), currentTime(0.0f),
+                 hasNextMove(false) {}
     
     bool initialize(int width, int height)
     {
@@ -479,6 +506,15 @@ public:
         glfwTerminate();
     }
 
+    void setNextMove(int x, int y) {
+        nextMovePos = {(float)x, (float)y};
+        hasNextMove = true;
+    }
+
+    void clearNextMove() {
+        hasNextMove = false;
+    }
+
 private:
     void render()
     {
@@ -576,6 +612,12 @@ private:
             0.0f, 0.0f, 1.0f, 0.0f,
             0.0f, 0.0f, 0.0f, 1.0f
         };
+
+        GLuint nextMovePosLoc = glGetUniformLocation(shaderProgram, "nextMovePos");
+        glUniform2f(nextMovePosLoc, nextMovePos[0], nextMovePos[1]);
+                
+        GLuint hasNextMoveLoc = glGetUniformLocation(shaderProgram, "hasNextMove");
+        glUniform1i(hasNextMoveLoc, hasNextMove ? 1 : 0);
         
         GLuint projLoc = glGetUniformLocation(shaderProgram, "projection");
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
@@ -781,6 +823,9 @@ bool openBox(SecureBox &box, bool useOpenGL)
         // Main interaction loop
         while (currentMove < moves.size() && !renderer->shouldCloseWindow())
         {
+            if (currentMove < moves.size()) {
+                renderer->setNextMove(moves[currentMove].x, moves[currentMove].y);
+            }
             // Render frame and check for input
             renderer->renderFrame();
             
@@ -810,6 +855,11 @@ bool openBox(SecureBox &box, bool useOpenGL)
                     renderer->waitForSpace();
                     break;
                 }
+            }
+            if (currentMove < moves.size()) {
+                renderer->setNextMove(moves[currentMove].x, moves[currentMove].y);
+            } else {
+                renderer->clearNextMove();
             }
             
             std::this_thread::sleep_for(std::chrono::milliseconds(16)); // ~60 FPS
