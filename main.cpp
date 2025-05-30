@@ -313,7 +313,7 @@ const vec3 LightDir0  = normalize(vec3(2.0, 2.0, 1.0));
 const int   MaxIter   = 60;
 const float Bottom    = 0.0;
 const float MinHeight = 0.1;
-const float MaxHeight = 2.0;
+const float MaxHeight = 4.0;
 const float sz        = 0.45;
 const float eps       = 1E-3;
 
