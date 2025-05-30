@@ -237,7 +237,7 @@ void waitForEnter(const std::string &message = "Press Enter to continue...")
 }
 
 //================================================================================
-// OpenGL implementation
+// Enhanced OpenGL implementation with improved visual effects
 //================================================================================
 
 class OpenGLRenderer
@@ -266,7 +266,7 @@ private:
         float duration;
         bool active;
         
-        AnimationEffect(int s, int x, int y, float start, float dur = 1.0f) 
+        AnimationEffect(int s, int x, int y, float start, float dur = 2.0f) 
             : step(s), toggleX(x), toggleY(y), startTime(start), duration(dur), active(true) {}
     };
     
@@ -299,21 +299,50 @@ out vec4 FragColor;
 
 uniform float iTime;
 uniform int numEffects;
-uniform vec2 effectPositions[10];  // Max 10 concurrent effects
+uniform vec2 effectPositions[10];
 uniform float effectStartTimes[10];
 uniform float effectDurations[10];
-uniform vec2 nextMovePos;          // Position of the next move to highlight
-uniform bool hasNextMove;          // Whether we have a next move to highlight
+uniform vec2 nextMovePos;
+uniform bool hasNextMove;
+uniform vec2 gridSize;
 
 void main()
 {
-    // Base cell color
     vec3 finalColor = color;
-        
-    // Global wave/ripple effects across the entire grid
-    float globalWaveEffect = 0.0;
-    float globalRingEffect = 0.0;
     
+    // Enhanced next move highlighting with cross pattern and border
+    if (hasNextMove) {
+        float crossWidth = 0.15;
+        float borderWidth = 0.08;
+        
+        // Cross highlighting for row and column
+        bool inRow = abs(cellPos.y - nextMovePos.y) < 0.1;
+        bool inCol = abs(cellPos.x - nextMovePos.x) < 0.1;
+        bool isCenter = abs(cellPos.x - nextMovePos.x) < 0.1 && abs(cellPos.y - nextMovePos.y) < 0.1;
+        
+        if (inRow || inCol) {
+            // Animated pulse for cross
+            float pulse = 0.5 + 0.3 * sin(iTime * 3.0);
+            vec3 highlightColor = vec3(0.8, 0.8, 0.9);
+            
+            if (isCenter) {
+                // Center cell gets stronger highlight with border effect
+                float borderPulse = 0.6 + 0.4 * sin(iTime * 4.0);
+                finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), borderPulse * 0.4);
+                
+                // Add border effect using cell coordinates
+                vec2 cellFrac = fract(cellPos);
+                float borderMask = 1.0 - smoothstep(borderWidth, borderWidth + 0.02, 
+                    min(min(cellFrac.x, 1.0 - cellFrac.x), min(cellFrac.y, 1.0 - cellFrac.y)));
+                finalColor = mix(finalColor, vec3(0.9, 0.9, 1.0), borderMask * pulse);
+            } else {
+                // Row/column highlighting
+                finalColor = mix(finalColor, highlightColor, pulse * 0.25);
+            }
+        }
+    }
+    
+    // Wave animation effects
     for (int i = 0; i < numEffects && i < 10; ++i) {
         vec2 effectPos = effectPositions[i];
         float effectTime = iTime - effectStartTimes[i];
@@ -321,48 +350,53 @@ void main()
         
         if (effectTime >= 0.0 && effectTime <= duration) {
             float progress = effectTime / duration;
-            float falloff = smoothstep(1.0, 0.0, progress); // Fade out over time
             float dist = distance(cellPos, effectPos);
             
-            // Global wave ripple effect using mask approach
-            float waveSpeed = 6.0;
-            float waveRadius = progress * 10.0;
-            float waveWidth = 3.0;
+            // Smooth fade out over time
+            float timeFalloff = smoothstep(1.0, 0.0, progress);
             
-            // Create smooth ripple mask based on distance
-            float waveMask = smoothstep(waveWidth, 0.0, abs(dist - waveRadius)) * falloff;
-            globalWaveEffect += waveMask * 0.3;
+            // Multiple wave rings with different speeds and colors
+            float waveSpeed1 = 8.0;
+            float waveSpeed2 = 12.0;
+            float waveSpeed3 = 6.0;
             
-            // Expanding ring effect (as a separate visual layer)
-            float ringRadius = progress * 5.0;
-            float ringWidth = 0.4;
-            float ringMask = smoothstep(ringWidth, 0.0, abs(dist - ringRadius)) * falloff;
-            globalRingEffect += ringMask * 0.6;
+            float waveRadius1 = progress * waveSpeed1;
+            float waveRadius2 = progress * waveSpeed2;
+            float waveRadius3 = progress * waveSpeed3;
             
-            // Enhanced highlight for affected row/column cells
+            // Wave ring widths
+            float waveWidth1 = 1.5;
+            float waveWidth2 = 1.0;
+            float waveWidth3 = 2.0;
+            
+            // Create smooth wave masks
+            float waveMask1 = smoothstep(waveWidth1, 0.0, abs(dist - waveRadius1)) * timeFalloff;
+            float waveMask2 = smoothstep(waveWidth2, 0.0, abs(dist - waveRadius2)) * timeFalloff;
+            float waveMask3 = smoothstep(waveWidth3, 0.0, abs(dist - waveRadius3)) * timeFalloff;
+            
+            // Different colors for different wave rings
+            vec3 waveColor1 = vec3(0.3, 0.6, 1.0); // Blue
+            vec3 waveColor2 = vec3(0.5, 0.8, 1.0); // Light blue
+            vec3 waveColor3 = vec3(0.2, 0.4, 0.8); // Dark blue
+            
+            // Apply wave effects with different intensities
+            finalColor += waveColor1 * waveMask1 * 0.6;
+            finalColor += waveColor2 * waveMask2 * 0.4;
+            finalColor += waveColor3 * waveMask3 * 0.3;
+            
+            // Add brightness boost for affected cells
             if (abs(cellPos.x - effectPos.x) < 0.1 || abs(cellPos.y - effectPos.y) < 0.1) {
-                float pulseFreq = 8.0;
-                float pulse = sin(effectTime * pulseFreq) * falloff * 0.3 + 0.3;
-                finalColor = mix(finalColor, vec3(1.0, 1.0, 0.8), pulse);
+                float cellPulse = sin(effectTime * 6.0) * timeFalloff * 0.3 + 0.3;
+                finalColor = mix(finalColor, vec3(1.0, 1.0, 0.9), cellPulse * timeFalloff);
             }
-        }
-    }
-
-    // Highlight the row and column of the next move with a subtle effect
-    if (hasNextMove) {
-        float highlightIntensity = 0.15;
-        if (abs(cellPos.x - nextMovePos.x) < 0.1 || abs(cellPos.y - nextMovePos.y) < 0.1) {
-            finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), highlightIntensity);
+            
+            // Radial brightness effect from center
+            float radialEffect = exp(-dist * 0.5) * timeFalloff * 0.2;
+            finalColor += vec3(radialEffect);
         }
     }
     
-    // Apply global wave effect as a modifier
-    finalColor *= (1.0 + globalWaveEffect);
-    
-    // Apply ring effect as an overlay
-    finalColor += vec3(0.3, 0.5, 1.0) * globalRingEffect;
-    
-    // Clamp the final color
+    // Clamp final color
     finalColor = clamp(finalColor, 0.0, 1.0);
     FragColor = vec4(finalColor, 1.0);
 }
@@ -424,7 +458,6 @@ public:
         return true;
     }
 
-    // Render single frame with events
     void renderFrame()
     {
         auto currentTimePoint = std::chrono::high_resolution_clock::now();
@@ -450,16 +483,16 @@ public:
         currentBoxState = box.getState();
     }
 
-    void addAnimationEffect(int step, int toggleX, int toggleY, float duration = 1.5f)
+    void addAnimationEffect(int step, int toggleX, int toggleY, float duration = 2.5f)
     {
         activeEffects.emplace_back(step, toggleX, toggleY, currentTime, duration);
         
         // Limit number of concurrent effects
-        if (activeEffects.size() > 10) {
+        if (activeEffects.size() > 8) {
             activeEffects.erase(activeEffects.begin());
         }
         
-        std::cout << "Added animation effect at (" << toggleX << ", " << toggleY << "), total effects: " << activeEffects.size() << std::endl;
+        std::cout << "Added wave animation at (" << toggleX << ", " << toggleY << ")" << std::endl;
     }
 
     void clearAllEffects()
@@ -487,7 +520,7 @@ public:
         bool result = spacePressed;
         if (result) {
             spacePressed = false;
-            std::cout << "Space detected and consumed" << std::endl;
+            std::cout << "Space detected - applying move" << std::endl;
         }
         return result;
     }
@@ -521,7 +554,7 @@ private:
         if (currentBoxState.empty())
             return;
 
-        glClearColor(0.1f, 0.1f, 0.1f, 1.0f);
+        glClearColor(0.05f, 0.05f, 0.1f, 1.0f); // Darker background for better contrast
         glClear(GL_COLOR_BUFFER_BIT);
 
         uint32_t width = currentBoxState[0].size();
@@ -546,11 +579,11 @@ private:
                 float r, g, b;
                 
                 if (value == 0) {
-                    r = 0.0f; g = 1.0f; b = 0.0f; // Green
+                    r = 0.1f; g = 0.8f; b = 0.1f; // Brighter green
                 } else if (value == 1) {
-                    r = 1.0f; g = 1.0f; b = 0.0f; // Yellow
+                    r = 0.9f; g = 0.8f; b = 0.1f; // Brighter yellow
                 } else {
-                    r = 1.0f; g = 0.0f; b = 0.0f; // Red
+                    r = 0.9f; g = 0.1f; b = 0.1f; // Brighter red
                 }
 
                 float cellX = (float)x;
@@ -574,9 +607,12 @@ private:
 
         glUseProgram(shaderProgram);
         
-        // Set time uniform
+        // Set uniforms
         GLuint timeLoc = glGetUniformLocation(shaderProgram, "iTime");
         glUniform1f(timeLoc, currentTime);
+        
+        GLuint gridSizeLoc = glGetUniformLocation(shaderProgram, "gridSize");
+        glUniform2f(gridSizeLoc, (float)width, (float)height);
         
         // Set effect uniforms
         int numEffects = std::min((int)activeEffects.size(), 10);
@@ -584,7 +620,7 @@ private:
         glUniform1i(numEffectsLoc, numEffects);
         
         if (numEffects > 0) {
-            std::vector<float> positions(20, 0.0f); // 10 effects * 2 coordinates
+            std::vector<float> positions(20, 0.0f);
             std::vector<float> startTimes(10, 0.0f);
             std::vector<float> durations(10, 1.0f);
             
@@ -605,6 +641,12 @@ private:
             glUniform1fv(durationsLoc, 10, durations.data());
         }
         
+        GLuint nextMovePosLoc = glGetUniformLocation(shaderProgram, "nextMovePos");
+        glUniform2f(nextMovePosLoc, nextMovePos[0], nextMovePos[1]);
+                
+        GLuint hasNextMoveLoc = glGetUniformLocation(shaderProgram, "hasNextMove");
+        glUniform1i(hasNextMoveLoc, hasNextMove ? 1 : 0);
+        
         // Set projection matrix
         float projection[16] = {
             1.0f, 0.0f, 0.0f, 0.0f,
@@ -612,12 +654,6 @@ private:
             0.0f, 0.0f, 1.0f, 0.0f,
             0.0f, 0.0f, 0.0f, 1.0f
         };
-
-        GLuint nextMovePosLoc = glGetUniformLocation(shaderProgram, "nextMovePos");
-        glUniform2f(nextMovePosLoc, nextMovePos[0], nextMovePos[1]);
-                
-        GLuint hasNextMoveLoc = glGetUniformLocation(shaderProgram, "hasNextMove");
-        glUniform1i(hasNextMoveLoc, hasNextMove ? 1 : 0);
         
         GLuint projLoc = glGetUniformLocation(shaderProgram, "projection");
         glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
@@ -701,7 +737,7 @@ private:
 };
 
 //================================================================================
-// Modified main solving algorithm - single threaded with animation queue
+// Main solving algorithm
 //================================================================================
 
 bool openBox(SecureBox &box, bool useOpenGL)
