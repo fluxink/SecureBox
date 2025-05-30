@@ -495,15 +495,24 @@ vec3 render(vec3 ro, vec3 rd) {
 }
 
 vec3 effect(vec2 p) {
+    // Increased FOV for wider view
     const float fov = tan(TAU/8.0);
     
-    // Static camera position
-    vec3 ro = vec3(0.0, 8.0, -6.0);
-    const vec3 up = vec3(0.0, 1.0, 0.0);
-    const vec3 ww = normalize(vec3(0.0, -0.7, 1.0));
+    // Calculate grid center and adjust camera position
+    vec2 gridCenter = vec2(0.0, 0.0);
+    float gridScale = max(gridSize.x, gridSize.y);
+    
+    // Position camera closer and at better angle
+    vec3 ro = vec3(gridCenter.x, 4.0 + gridScale * 0.3, gridCenter.y - gridScale * 0.8);
+    
+    // Look at the center of the grid
+    vec3 target = vec3(gridCenter.x, 0.0, gridCenter.y);
+    vec3 ww = normalize(target - ro);
+    vec3 up = vec3(0.0, 1.0, 0.0);
     vec3 uu = normalize(cross(up, ww));
     vec3 vv = cross(ww, uu);
-    vec3 rd = normalize(-p.x * uu + p.y * vv + fov * ww);
+    
+    vec3 rd = normalize(p.x * uu + p.y * vv + fov * ww);
     
     vec3 col = render(ro, rd);
     col = clamp(col, 0.0, 1.0);
