@@ -414,7 +414,7 @@ vec3 getColor(vec2 p) {
             
             if (isAffected) {
                 // Calculate transition progress (0.0 to 1.0)
-                float colorTransitionDuration = min(duration * 0.3, 0.8); // 30% of effect duration, max 0.8s
+                float colorTransitionDuration = min(duration * 0.3, 1.8); // 30% of effect duration, max 0.8s
                 float progress = clamp(effectTime / colorTransitionDuration, 0.0, 1.0);
                 
                 // Smooth easing function for natural transition
@@ -453,7 +453,7 @@ vec3 getColor(vec2 p) {
         float distToNext = length(p - worldNextPos);
         if (distToNext < 0.6) {
             float pulse = 0.5 + 0.5 * sin(iTime * 4.0);
-            finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), pulse * 0.3);
+            finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), pulse * 0.5);
         }
     }
     
