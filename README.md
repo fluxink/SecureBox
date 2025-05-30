@@ -31,7 +31,7 @@ REM Method 3: Direct compilation
 g++ hellowindow2.cpp -Iglad/include -I"C:\vcpkg\installed\x64-windows\include" glad/src/gl.c -L"C:\vcpkg\installed\x64-windows\lib" -lglfw3dll -lgdi32 -lopengl32 -o hellowindow2.exe
 ```
 
-## 📁 Структура проекта
+## 📁 Project structure
 
 ```
 ├── main.cpp                          # Простой пример C++

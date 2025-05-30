@@ -102,7 +102,7 @@ For correct IntelliSense operation in VS Code, make sure the correct paths are s
 }
 ```
 
-## Структура проекта
+## Project structure
 
 ```
 project/

@@ -1,71 +1,71 @@
-# ✅ Checklist для новых пользователей
+# ✅ Checklist for New Users
 
-## 📥 Шаг 1: Получение проекта
-- [ ] Скачайте или клонируйте проект
-- [ ] Убедитесь что все файлы на месте (см. DEPLOYMENT_SUMMARY.md)
+## 📥 Step 1: Getting the Project
+- [ ] Download or clone the project
+- [ ] Make sure all files are in place (see DEPLOYMENT_SUMMARY.md)
 
-## 🔧 Шаг 2: Автоматическая установка окружения
-- [ ] Откройте **PowerShell от имени администратора**
-- [ ] Перейдите в папку проекта: `cd путь\к\проекту`
-- [ ] Запустите: `.\setup_opengl_environment.ps1`
-- [ ] Дождитесь завершения установки
-- [ ] **Перезагрузите командную строку** для обновления PATH
+## 🔧 Step 2: Automatic Environment Setup
+- [ ] Open **PowerShell as Administrator**
+- [ ] Navigate to the project folder: `cd path\to\project`
+- [ ] Run: `.\setup_opengl_environment.ps1`
+- [ ] Wait for installation to complete
+- [ ] **Restart command prompt** to update PATH
 
-## 🎨 Шаг 3: Настройка VS Code (опционально)
-- [ ] Откройте командную строку в папке проекта
-- [ ] Запустите: `setup_vscode.bat`
-- [ ] Откройте проект в VS Code
-- [ ] Убедитесь что IntelliSense работает (нет красных подчеркиваний в `#include <GLFW/glfw3.h>`)
+## 🎨 Step 3: VS Code Setup (optional)
+- [ ] Open command prompt in the project folder
+- [ ] Run: `setup_vscode.bat`
+- [ ] Open project in VS Code
+- [ ] Make sure IntelliSense works (no red underlines in `#include <GLFW/glfw3.h>`)
 
-## 🚀 Шаг 4: Компиляция и запуск
-- [ ] **Простой способ**: Дважды кликните на `compile_opengl.bat`
-- [ ] **Или** в командной строке: `compile_opengl.bat`
-- [ ] Убедитесь что программа скомпилировалась без ошибок
-- [ ] Запустите `hellowindow2.exe` - должно открыться окно OpenGL
-- [ ] Нажмите ESC для закрытия окна
+## 🚀 Step 4: Compilation and Running
+- [ ] **Easy way**: Double-click on `compile_opengl.bat`
+- [ ] **Or** in command line: `compile_opengl.bat`
+- [ ] Make sure the program compiled without errors
+- [ ] Run `hellowindow2.exe` - an OpenGL window should open
+- [ ] Press ESC to close the window
 
-## 🔍 Шаг 5: Проверка работоспособности
-- [ ] Окно OpenGL открывается с зеленовато-серым фоном
-- [ ] В консоли выводится: "Starting GLFW context, OpenGL 3.3" и "Loaded OpenGL 3.3"
-- [ ] Окно реагирует на нажатие ESC (закрывается)
-- [ ] В VS Code нет ошибок IntelliSense в OpenGL коде
+## 🔍 Step 5: Functionality Check
+- [ ] OpenGL window opens with greenish-gray background
+- [ ] Console outputs: "Starting GLFW context, OpenGL 3.3" and "Loaded OpenGL 3.3"
+- [ ] Window responds to ESC key press (closes)
+- [ ] No IntelliSense errors in VS Code for OpenGL code
 
-## 🆘 Если что-то не работает
+## 🆘 If Something Doesn't Work
 
-### Ошибка: "vcpkg не найден"
-- [ ] Проверьте что PowerShell запущен от имени администратора
-- [ ] Убедитесь что есть интернет для загрузки vcpkg
-- [ ] Попробуйте установить vcpkg вручную (см. SETUP_GUIDE.md)
+### Error: "vcpkg not found"
+- [ ] Check that PowerShell is running as Administrator
+- [ ] Make sure you have internet connection to download vcpkg
+- [ ] Try installing vcpkg manually (see SETUP_GUIDE.md)
 
-### Ошибка: "GCC не найден"
-- [ ] Установите MinGW-w64
-- [ ] Убедитесь что MinGW добавлен в PATH
-- [ ] Перезагрузите командную строку
+### Error: "GCC not found"
+- [ ] Install MinGW-w64
+- [ ] Make sure MinGW is added to PATH
+- [ ] Restart command prompt
 
-### Ошибка: "GLFW/glfw3.h not found"
-- [ ] Убедитесь что vcpkg установил GLFW: `C:\vcpkg\vcpkg list`
-- [ ] Проверьте путь к vcpkg в `compile_opengl.bat`
-- [ ] Попробуйте переустановить GLFW: `C:\vcpkg\vcpkg install glfw3:x64-windows`
+### Error: "GLFW/glfw3.h not found"
+- [ ] Make sure vcpkg installed GLFW: `C:\vcpkg\vcpkg list`
+- [ ] Check the vcpkg path in `compile_opengl.bat`
+- [ ] Try reinstalling GLFW: `C:\vcpkg\vcpkg install glfw3:x64-windows`
 
-### IntelliSense не работает в VS Code
-- [ ] Убедитесь что запущен `setup_vscode.bat`
-- [ ] Проверьте что файл `.vscode\c_cpp_properties.json` создан
-- [ ] Перезагрузите VS Code: Ctrl+Shift+P → "Developer: Reload Window"
+### IntelliSense doesn't work in VS Code
+- [ ] Make sure `setup_vscode.bat` was run
+- [ ] Check that `.vscode\c_cpp_properties.json` file was created
+- [ ] Reload VS Code: Ctrl+Shift+P → "Developer: Reload Window"
 
-### Программа не запускается: "glfw3.dll not found"
-- [ ] Убедитесь что `glfw3.dll` находится в той же папке что и `hellowindow2.exe`
-- [ ] Скопируйте DLL вручную: `copy "C:\vcpkg\installed\x64-windows\bin\glfw3.dll" .`
+### Program doesn't start: "glfw3.dll not found"
+- [ ] Make sure `glfw3.dll` is in the same folder as `hellowindow2.exe`
+- [ ] Copy DLL manually: `copy "C:\vcpkg\installed\x64-windows\bin\glfw3.dll" .`
 
-## 📖 Дополнительная помощь
-- Читайте **SETUP_GUIDE.md** для подробных инструкций
-- Проверьте раздел "Устранение проблем" в документации
-- Убедитесь что ваша видеокарта поддерживает OpenGL 3.3+
+## 📖 Additional Help
+- Read **SETUP_GUIDE.md** for detailed instructions
+- Check the "Troubleshooting" section in documentation
+- Make sure your graphics card supports OpenGL 3.3+
 
-## 🎉 Успех!
-Если все шаги выполнены и окно OpenGL открывается - поздравляем! 
-Вы готовы к изучению OpenGL программирования.
+## 🎉 Success!
+If all steps are completed and the OpenGL window opens - congratulations! 
+You're ready to learn OpenGL programming.
 
-**Следующие шаги:**
-- Изучите код в `hellowindow2.cpp`
-- Попробуйте изменить цвет фона (строка `glClearColor`)
-- Посетите https://learnopengl.com/ для дальнейшего изучения
+**Next steps:**
+- Study the code in `hellowindow2.cpp`
+- Try changing the background color (`glClearColor` line)
+- Visit https://learnopengl.com/ for further learning
