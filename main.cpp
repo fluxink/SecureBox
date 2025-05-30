@@ -342,7 +342,7 @@ void main()
         }
     }
     
-    // Wave animation effects
+    // Column and Row wave animation effects
     for (int i = 0; i < numEffects && i < 10; ++i) {
         vec2 effectPos = effectPositions[i];
         float effectTime = iTime - effectStartTimes[i];
@@ -350,49 +350,55 @@ void main()
         
         if (effectTime >= 0.0 && effectTime <= duration) {
             float progress = effectTime / duration;
-            float dist = distance(cellPos, effectPos);
             
-            // Smooth fade out over time
-            float timeFalloff = smoothstep(1.0, 0.0, progress);
+            // Check if current cell is in the same row or column as the effect
+            bool inSameRow = abs(cellPos.y - effectPos.y) < 0.1;
+            bool inSameCol = abs(cellPos.x - effectPos.x) < 0.1;
+            bool isEffectCenter = abs(cellPos.x - effectPos.x) < 0.1 && abs(cellPos.y - effectPos.y) < 0.1;
             
-            // Multiple wave rings with different speeds and colors
-            float waveSpeed1 = 8.0;
-            float waveSpeed2 = 12.0;
-            float waveSpeed3 = 6.0;
-            
-            float waveRadius1 = progress * waveSpeed1;
-            float waveRadius2 = progress * waveSpeed2;
-            float waveRadius3 = progress * waveSpeed3;
-            
-            // Wave ring widths
-            float waveWidth1 = 1.5;
-            float waveWidth2 = 1.0;
-            float waveWidth3 = 2.0;
-            
-            // Create smooth wave masks
-            float waveMask1 = smoothstep(waveWidth1, 0.0, abs(dist - waveRadius1)) * timeFalloff;
-            float waveMask2 = smoothstep(waveWidth2, 0.0, abs(dist - waveRadius2)) * timeFalloff;
-            float waveMask3 = smoothstep(waveWidth3, 0.0, abs(dist - waveRadius3)) * timeFalloff;
-            
-            // Different colors for different wave rings
-            vec3 waveColor1 = vec3(0.3, 0.6, 1.0); // Blue
-            vec3 waveColor2 = vec3(0.5, 0.8, 1.0); // Light blue
-            vec3 waveColor3 = vec3(0.2, 0.4, 0.8); // Dark blue
-            
-            // Apply wave effects with different intensities
-            finalColor += waveColor1 * waveMask1 * 0.6;
-            finalColor += waveColor2 * waveMask2 * 0.4;
-            finalColor += waveColor3 * waveMask3 * 0.3;
-            
-            // Add brightness boost for affected cells
-            if (abs(cellPos.x - effectPos.x) < 0.1 || abs(cellPos.y - effectPos.y) < 0.1) {
-                float cellPulse = sin(effectTime * 6.0) * timeFalloff * 0.3 + 0.3;
-                finalColor = mix(finalColor, vec3(1.0, 1.0, 0.9), cellPulse * timeFalloff);
+            if (inSameRow || inSameCol) {
+                // Smooth fade out over time
+                float timeFalloff = smoothstep(1.0, 0.0, progress);
+                
+                if (inSameRow && inSameCol) {
+                    // Center cell - bright white/yellow flash
+                    float centerPulse = sin(effectTime * 8.0) * 0.5 + 0.5;
+                    vec3 centerColor = vec3(1.0, 1.0, 0.9); // Bright white-yellow
+                    float centerIntensity = centerPulse * timeFalloff * 1.0; // Increased intensity
+                    
+                    finalColor = mix(finalColor, centerColor, centerIntensity);
+                }
+                else if (inSameRow) {
+                    // Row wave effect - bright blue
+                    float distanceFromCenter = abs(cellPos.x - effectPos.x);
+                    float waveSpeed = 4.0; // Slower wave for longer effect
+                    float wavePosition = progress * gridSize.x * 0.8; // Slower propagation
+                    
+                    // Create longer wave that travels along the row
+                    float waveIntensity = smoothstep(3.0, 0.0, abs(distanceFromCenter - wavePosition)); // Longer wave
+                    
+                    // Bright blue color for row effect
+                    vec3 rowColor = vec3(0.2, 0.5, 1.0);
+                    float rowEffect = waveIntensity * timeFalloff * 0.95; // Much stronger effect
+                    
+                    finalColor = mix(finalColor, rowColor, rowEffect);
+                }
+                else if (inSameCol) {
+                    // Column wave effect - bright green
+                    float distanceFromCenter = abs(cellPos.y - effectPos.y);
+                    float waveSpeed = 4.0; // Slower wave for longer effect
+                    float wavePosition = progress * gridSize.y * 0.8; // Slower propagation
+                    
+                    // Create longer wave that travels along the column
+                    float waveIntensity = smoothstep(3.0, 0.0, abs(distanceFromCenter - wavePosition)); // Longer wave
+                    
+                    // Bright green color for column effect
+                    vec3 colColor = vec3(0.2, 0.5, 1.0);
+                    float colEffect = waveIntensity * timeFalloff * 0.95; // Much stronger effect
+                    
+                    finalColor = mix(finalColor, colColor, colEffect);
+                }
             }
-            
-            // Radial brightness effect from center
-            float radialEffect = exp(-dist * 0.5) * timeFalloff * 0.2;
-            finalColor += vec3(radialEffect);
         }
     }
     
