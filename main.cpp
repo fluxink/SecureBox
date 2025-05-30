@@ -246,6 +246,7 @@ private:
     GLFWwindow* window;
     GLuint shaderProgram;
     GLuint VAO, VBO;
+    GLuint heightTexture;
     int windowWidth, windowHeight;
     bool shouldClose;
     bool spacePressed;
@@ -256,6 +257,8 @@ private:
     // Animation state
     float currentTime;
     std::vector<std::vector<uint8_t>> currentBoxState;
+    std::vector<std::vector<float>> targetHeights;
+    std::vector<std::vector<float>> currentHeights;
     std::mutex stateMutex;
     
     // Multiple animation effects
@@ -275,158 +278,250 @@ private:
     const char* vertexShaderSource = R"(
 #version 330 core
 layout (location = 0) in vec2 aPos;
-layout (location = 1) in vec3 aColor;
-layout (location = 2) in vec2 aCellPos;
-
-out vec3 color;
-out vec2 cellPos;
-
-uniform mat4 projection;
+out vec2 fragCoord;
 
 void main()
 {
-    color = aColor;
-    cellPos = aCellPos;
-    gl_Position = projection * vec4(aPos, 0.0, 1.0);
+    fragCoord = (aPos + 1.0) * 0.5;
+    gl_Position = vec4(aPos, 0.0, 1.0);
 }
 )";
 
     const char* fragmentShaderSource = R"(
 #version 330 core
-in vec3 color;
-in vec2 cellPos;
+in vec2 fragCoord;
 out vec4 FragColor;
 
 uniform float iTime;
+uniform vec2 iResolution;
+uniform sampler2D heightMap;
+uniform vec2 gridSize;
 uniform int numEffects;
 uniform vec2 effectPositions[10];
 uniform float effectStartTimes[10];
 uniform float effectDurations[10];
 uniform vec2 nextMovePos;
 uniform bool hasNextMove;
-uniform vec2 gridSize;
 
-void main()
-{
-    vec3 finalColor = color;
-    float shadowIntensity = 0.0;
-    float pressIntensity = 0.0;
+#define TIME        iTime
+#define RESOLUTION  iResolution
+#define PI          3.141592654
+#define TAU         (2.0*PI)
+#define ROT(a)      mat2(cos(a), sin(a), -sin(a), cos(a))
+
+const vec3 LightDir0  = normalize(vec3(2.0, 2.0, 1.0));
+const int   MaxIter   = 60;
+const float Bottom    = 0.0;
+const float MinHeight = 0.1;
+const float MaxHeight = 2.0;
+const float sz        = 0.45;
+const float eps       = 1E-3;
+
+float tanh_approx(float x) {
+    float x2 = x*x;
+    return clamp(x*(27.0 + x2)/(27.0+9.0*x2), -1.0, 1.0);
+}
+
+vec2 rayBox(vec3 ro, vec3 rd, vec3 boxSize, out vec3 outNormal) {
+    vec3 m = 1.0/rd;
+    vec3 n = m*ro;
+    vec3 k = abs(m)*boxSize;
+    vec3 t1 = -n - k;
+    vec3 t2 = -n + k;
+    float tN = max(max(t1.x, t1.y), t1.z);
+    float tF = min(min(t2.x, t2.y), t2.z);
+    if(tN > tF || tF < 0.0) return vec2(-1.0);
+    outNormal = (tN > 0.0) ? step(vec3(tN), t1) : step(t2, vec3(tF));
+    outNormal *= -sign(rd);
+    return vec2(tN, tF);
+}
+
+float getHeight(vec2 p) {
+    // Convert world position to grid coordinates
+    vec2 gridCoord = (p + gridSize * 0.5) / gridSize;
     
-    // Calculate press effects for this cell
+    if (gridCoord.x < 0.0 || gridCoord.x > 1.0 || gridCoord.y < 0.0 || gridCoord.y > 1.0) {
+        return 0.0;
+    }
+    
+    float h = texture(heightMap, gridCoord).r;
+    
+    // Add wave effects from toggles
+    float waveEffect = 0.0;
     for (int i = 0; i < numEffects && i < 10; ++i) {
         vec2 effectPos = effectPositions[i];
-        float effectTime = iTime - effectStartTimes[i];
+        float effectTime = TIME - effectStartTimes[i];
         float duration = effectDurations[i];
         
         if (effectTime >= 0.0 && effectTime <= duration) {
             float progress = effectTime / duration;
+            vec2 worldEffectPos = (effectPos - gridSize * 0.5);
+            float dist = length(p - worldEffectPos);
             
-            // Check if current cell is in the same row or column as the effect
-            bool inSameRow = abs(cellPos.y - effectPos.y) < 0.1;
-            bool inSameCol = abs(cellPos.x - effectPos.x) < 0.1;
-            bool isEffectCenter = abs(cellPos.x - effectPos.x) < 0.1 && abs(cellPos.y - effectPos.y) < 0.1;
-            
-            if (inSameRow || inSameCol) {
-                float timeFalloff = smoothstep(1.0, 0.0, progress);
-                
-                if (isEffectCenter) {
-                    // Center cell - strongest press effect
-                    float centerPulse = sin(effectTime * 6.0) * 0.5 + 0.5;
-                    pressIntensity += centerPulse * timeFalloff * 0.3;
-                }
-                else if (inSameRow) {
-                    // Row press wave effect
-                    float distanceFromCenter = abs(cellPos.x - effectPos.x);
-                    float wavePosition = progress * gridSize.x * 0.6;
-                    float waveIntensity = smoothstep(2.5, 0.0, abs(distanceFromCenter - wavePosition));
-                    pressIntensity += waveIntensity * timeFalloff * 0.15;
-                }
-                else if (inSameCol) {
-                    // Column press wave effect
-                    float distanceFromCenter = abs(cellPos.y - effectPos.y);
-                    float wavePosition = progress * gridSize.y * 0.6;
-                    float waveIntensity = smoothstep(2.5, 0.0, abs(distanceFromCenter - wavePosition));
-                    pressIntensity += waveIntensity * timeFalloff * 0.15;
-                }
-            }
+            // Ripple wave
+            float wave = sin(dist * 8.0 - effectTime * 6.0) * exp(-dist * 2.0);
+            wave *= smoothstep(1.0, 0.0, progress);
+            waveEffect += wave * 0.15;
         }
     }
     
-    // Create cell shrinking effect using fragment coordinates
-    vec2 cellFrac = fract(cellPos + 0.5) - 0.5; // Cell coordinates from -0.5 to 0.5
+    h += waveEffect;
+    return mix(MinHeight, MaxHeight, clamp(h, 0.0, 1.0));
+}
+
+vec3 getColor(vec2 p) {
+    vec2 gridCoord = (p + gridSize * 0.5) / gridSize;
     
-    if (pressIntensity > 0.0) {
-        // Calculate shrink factor
-        float shrinkFactor = 1.0 - pressIntensity * 0.25; // Shrink up to 25%
-        shrinkFactor = max(shrinkFactor, 0.6); // Minimum 60% of original size
-        
-        // Scale cell coordinates to create shrinking effect
-        vec2 scaledCellFrac = cellFrac / shrinkFactor;
-        
-        // If outside the shrunken cell area, discard or make transparent
-        if (abs(scaledCellFrac.x) > 0.45 || abs(scaledCellFrac.y) > 0.45) {
-            // Create background color for the "pressed down" area
-            vec3 backgroundColor = color * 0.3; // Dark background
-            finalColor = backgroundColor;
-            shadowIntensity = pressIntensity * 0.8;
-        } else {
-            // Inside the shrunken cell - apply press effects
-            shadowIntensity = pressIntensity * 0.6;
-            
-            // Add depth shading based on distance from center
-            float distanceFromCenter = length(scaledCellFrac) * 2.0;
-            float depthShading = smoothstep(0.0, 1.0, distanceFromCenter);
-            finalColor = mix(finalColor, finalColor * 0.7, pressIntensity * depthShading * 0.4);
-        }
+    if (gridCoord.x < 0.0 || gridCoord.x > 1.0 || gridCoord.y < 0.0 || gridCoord.y > 1.0) {
+        return vec3(0.1, 0.1, 0.2);
     }
     
-    // Enhanced next move highlighting
+    float value = texture(heightMap, gridCoord).g; // Use green channel for cell values
+    
+    vec3 baseColor;
+    if (value < 0.33) {
+        baseColor = vec3(0.2, 0.8, 0.2); // Green for 0
+    } else if (value < 0.67) {
+        baseColor = vec3(0.9, 0.8, 0.2); // Yellow for 1
+    } else {
+        baseColor = vec3(0.9, 0.2, 0.2); // Red for 2
+    }
+    
+    // Add highlight for next move
     if (hasNextMove) {
-        float borderWidth = 0.08;
-        
-        bool inRow = abs(cellPos.y - nextMovePos.y) < 0.1;
-        bool inCol = abs(cellPos.x - nextMovePos.x) < 0.1;
-        bool isCenter = abs(cellPos.x - nextMovePos.x) < 0.1 && abs(cellPos.y - nextMovePos.y) < 0.1;
-        
-        if (inRow || inCol) {
-            float pulse = 0.5 + 0.3 * sin(iTime * 3.0);
-            vec3 highlightColor = vec3(0.8, 0.8, 0.9);
-            
-            if (isCenter) {
-                float borderPulse = 0.6 + 0.4 * sin(iTime * 4.0);
-                finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), borderPulse * 0.4);
-                
-                vec2 cellFracAbs = abs(cellFrac);
-                float borderMask = 1.0 - smoothstep(borderWidth, borderWidth + 0.02, 
-                    min(0.5 - cellFracAbs.x, 0.5 - cellFracAbs.y));
-                finalColor = mix(finalColor, vec3(0.9, 0.9, 1.0), borderMask * pulse);
-            } else {
-                finalColor = mix(finalColor, highlightColor, pulse * 0.25);
-            }
+        vec2 worldNextPos = (nextMovePos - gridSize * 0.5);
+        float distToNext = length(p - worldNextPos);
+        if (distToNext < 0.6) {
+            float pulse = 0.5 + 0.5 * sin(TIME * 4.0);
+            baseColor = mix(baseColor, vec3(1.0, 1.0, 1.0), pulse * 0.3);
         }
     }
     
-    // Apply shadow effects
-    if (shadowIntensity > 0.0) {
-        // Create inner shadow effect
-        float edgeDistance = 1.0 - 2.0 * max(abs(cellFrac.x), abs(cellFrac.y));
-        float shadowGradient = smoothstep(0.0, 0.8, edgeDistance);
-        float shadow = shadowIntensity * (1.0 - shadowGradient * 0.7);
+    return baseColor;
+}
+
+float cellTrace(vec3 ro, vec3 rd, float near, float far, out int iter, out vec2 cell, out vec2 boxi, out vec3 boxn) {
+    vec2 rd2 = rd.xz;
+    vec2 ird2 = 1.0/rd.xz;
+    vec2 stp = step(vec2(0.0), rd2);
+    
+    float ct = near;
+    iter = MaxIter;
+    vec2 bi = vec2(-1.0);
+    vec3 bn = vec3(0.0);
+    vec2 np2 = vec2(0.0);
+    float ft = far;
+    
+    for (int i = 0; i < MaxIter; ++i) {
+        vec3 cp = ro + rd * ct;
+        np2 = floor(cp.xz);
+        float h = getHeight(np2);
+        vec3 bdim = vec3(sz, h, sz);
+        vec3 coff = vec3(np2.x + 0.5, h, np2.y + 0.5);
+        vec3 bro = ro - coff;
+        bi = rayBox(bro, rd, bdim, bn);
         
-        finalColor = mix(finalColor, finalColor * 0.5, shadow);
+        if (bi.x > 0.0) {
+            float bt = bi.x;
+            if (bt >= far) {
+                break;
+            }
+            ft = bt;
+            iter = i;
+            break;
+        }
         
-        // Add bevel effect
-        float bevelEffect = shadowIntensity * (1.0 - smoothstep(0.7, 1.0, edgeDistance));
-        finalColor = mix(finalColor, finalColor * 0.6, bevelEffect * 0.3);
+        // Step to next cell
+        vec2 dif = np2 - cp.xz;
+        dif += stp;
+        dif *= ird2;
+        float dt = min(dif.x, dif.y);
+        ct += dt + eps;
+        
+        if (ct >= far) {
+            break;
+        }
+    }
+    cell = np2;
+    boxi = bi;
+    boxn = bn;
+    return ft;
+}
+
+vec3 render(vec3 ro, vec3 rd) {
+    vec3 sky = vec3(0.1, 0.1, 0.2);
+    
+    float skyt = 1E3;
+    float bottom = -(ro.y - Bottom) / rd.y;
+    float near = -(ro.y - MaxHeight) / rd.y;
+    float far = bottom >= 0.0 ? bottom : skyt;
+    
+    int iter;
+    vec2 cell;
+    vec2 boxi;
+    vec3 boxn;
+    float ct = cellTrace(ro, rd, near, far, iter, cell, boxi, boxn);
+    if (ct == skyt) {
+        return sky;
     }
     
-    finalColor = clamp(finalColor, 0.0, 1.0);
-    FragColor = vec4(finalColor, 1.0);
+    vec3 p = ro + ct * rd;
+    
+    int siter;
+    vec2 scell;
+    vec2 sboxi;
+    vec3 sboxn;
+    float sfar = -(p.y - MaxHeight) / LightDir0.y;
+    float sct = cellTrace((p - 2.0 * eps * rd), LightDir0, eps, sfar, siter, scell, sboxi, sboxn);
+    
+    vec3 n = vec3(0.0, 1.0, 0.0);
+    vec3 bcol = vec3(0.5);
+    
+    if (iter < MaxIter) {
+        n = boxn;
+        bcol = getColor(cell);
+        bcol *= smoothstep(0.0, 0.1, boxi.y - boxi.x);
+    }
+    
+    float dif0 = max(dot(n, LightDir0), 0.0);
+    dif0 = sqrt(dif0);
+    float sf = siter < MaxIter ? tanh_approx(0.066 * sct) : 1.0;
+    bcol *= mix(0.3, 1.0, dif0 * sf);
+    
+    vec3 col = bcol;
+    col = mix(col, sky, 1.0 - exp(-0.05 * max(ct - 20.0, 0.0)));
+    
+    return col;
+}
+
+vec3 effect(vec2 p) {
+    const float fov = tan(TAU/8.0);
+    
+    // Static camera position
+    vec3 ro = vec3(0.0, 8.0, -6.0);
+    const vec3 up = vec3(0.0, 1.0, 0.0);
+    const vec3 ww = normalize(vec3(0.0, -0.7, 1.0));
+    vec3 uu = normalize(cross(up, ww));
+    vec3 vv = cross(ww, uu);
+    vec3 rd = normalize(-p.x * uu + p.y * vv + fov * ww);
+    
+    vec3 col = render(ro, rd);
+    col = clamp(col, 0.0, 1.0);
+    col = sqrt(col);
+    return col;
+}
+
+void main() {
+    vec2 q = fragCoord;
+    vec2 p = -1.0 + 2.0 * q;
+    p.x *= iResolution.x / iResolution.y;
+    vec3 col = effect(p);
+    FragColor = vec4(col, 1.0);
 }
 )";
 
 public:
-    OpenGLRenderer() : window(nullptr), shaderProgram(0), VAO(0), VBO(0), 
+    OpenGLRenderer() : window(nullptr), shaderProgram(0), VAO(0), VBO(0), heightTexture(0),
                  shouldClose(false), spacePressed(false), currentTime(0.0f),
                  hasNextMove(false) {}
     
@@ -446,7 +541,7 @@ public:
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
         glfwWindowHint(GLFW_RESIZABLE, GL_FALSE);
 
-        window = glfwCreateWindow(width, height, "SecureBox Solver", NULL, NULL);
+        window = glfwCreateWindow(width, height, "SecureBox 3D Solver", NULL, NULL);
         if (!window)
         {
             std::cout << "Failed to create GLFW window" << std::endl;
@@ -474,11 +569,58 @@ public:
             return false;
         }
 
+        // Create fullscreen quad
+        float quadVertices[] = {
+            -1.0f, -1.0f,
+             1.0f, -1.0f,
+             1.0f,  1.0f,
+            -1.0f, -1.0f,
+             1.0f,  1.0f,
+            -1.0f,  1.0f
+        };
+
         glGenVertexArrays(1, &VAO);
         glGenBuffers(1, &VBO);
+        glBindVertexArray(VAO);
+        glBindBuffer(GL_ARRAY_BUFFER, VBO);
+        glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), quadVertices, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
+        glEnableVertexAttribArray(0);
+
+        // Create height texture
+        glGenTextures(1, &heightTexture);
+        glBindTexture(GL_TEXTURE_2D, heightTexture);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
 
         glViewport(0, 0, width, height);
         return true;
+    }
+
+    void updateBoxState(const SecureBox &box)
+    {
+        currentBoxState = box.getState();
+        
+        // Initialize height arrays if needed
+        if (targetHeights.empty()) {
+            targetHeights.resize(currentBoxState.size());
+            currentHeights.resize(currentBoxState.size());
+            for (size_t y = 0; y < currentBoxState.size(); ++y) {
+                targetHeights[y].resize(currentBoxState[y].size());
+                currentHeights[y].resize(currentBoxState[y].size());
+            }
+        }
+        
+        // Update target heights
+        for (size_t y = 0; y < currentBoxState.size(); ++y) {
+            for (size_t x = 0; x < currentBoxState[y].size(); ++x) {
+                targetHeights[y][x] = currentBoxState[y][x] / 2.0f;
+            }
+        }
+        
+        updateHeightTexture();
     }
 
     void renderFrame()
@@ -487,6 +629,23 @@ public:
         static auto startTime = currentTimePoint;
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(currentTimePoint - startTime);
         currentTime = elapsed.count() / 1000000.0f;
+        
+        // Animate heights towards targets
+        if (!currentHeights.empty()) {
+            bool changed = false;
+            for (size_t y = 0; y < currentHeights.size(); ++y) {
+                for (size_t x = 0; x < currentHeights[y].size(); ++x) {
+                    float diff = targetHeights[y][x] - currentHeights[y][x];
+                    if (abs(diff) > 0.01f) {
+                        currentHeights[y][x] += diff * 0.05f; // Smooth interpolation
+                        changed = true;
+                    }
+                }
+            }
+            if (changed) {
+                updateHeightTexture();
+            }
+        }
         
         // Clean up expired effects
         activeEffects.erase(
@@ -501,21 +660,15 @@ public:
         render();
     }
 
-    void updateBoxState(const SecureBox &box)
-    {
-        currentBoxState = box.getState();
-    }
-
     void addAnimationEffect(int step, int toggleX, int toggleY, float duration = 2.5f)
     {
         activeEffects.emplace_back(step, toggleX, toggleY, currentTime, duration);
         
-        // Limit number of concurrent effects
         if (activeEffects.size() > 8) {
             activeEffects.erase(activeEffects.begin());
         }
         
-        std::cout << "Added wave animation at (" << toggleX << ", " << toggleY << ")" << std::endl;
+        std::cout << "Added 3D wave animation at (" << toggleX << ", " << toggleY << ")" << std::endl;
     }
 
     void clearAllEffects()
@@ -555,6 +708,7 @@ public:
 
     void cleanup()
     {
+        if (heightTexture) glDeleteTextures(1, &heightTexture);
         if (VAO) glDeleteVertexArrays(1, &VAO);
         if (VBO) glDeleteBuffers(1, &VBO);
         if (shaderProgram) glDeleteProgram(shaderProgram);
@@ -572,75 +726,50 @@ public:
     }
 
 private:
-    void render()
+    void updateHeightTexture()
     {
-        if (currentBoxState.empty())
-            return;
-
-        glClearColor(0.05f, 0.05f, 0.1f, 1.0f); // Darker background for better contrast
-        glClear(GL_COLOR_BUFFER_BIT);
-
-        uint32_t width = currentBoxState[0].size();
-        uint32_t height = currentBoxState.size();
-
-        float cellSize = std::min(1.6f / width, 1.6f / height);
-        float startX = -(width * cellSize) / 2.0f;
-        float startY = (height * cellSize) / 2.0f;
-
-        std::vector<float> vertices;
-
-        for (uint32_t y = 0; y < height; ++y)
-        {
-            for (uint32_t x = 0; x < width; ++x)
-            {
-                float left = startX + x * cellSize;
-                float right = left + cellSize * 0.9f;
-                float top = startY - y * cellSize;
-                float bottom = top - cellSize * 0.9f;
-
-                uint8_t value = currentBoxState[y][x];
-                float r, g, b;
-                
-                if (value == 0) {
-                    r = 0.1f; g = 0.8f; b = 0.1f; // Brighter green
-                } else if (value == 1) {
-                    r = 0.9f; g = 0.8f; b = 0.1f; // Brighter yellow
-                } else {
-                    r = 0.9f; g = 0.1f; b = 0.1f; // Brighter red
-                }
-
-                float cellX = (float)x;
-                float cellY = (float)y;
-
-                // Two triangles per cell
-                float cellVertices[] = {
-                    left,  bottom, r, g, b, cellX, cellY,
-                    right, bottom, r, g, b, cellX, cellY,
-                    right, top,    r, g, b, cellX, cellY,
-                    
-                    left,  bottom, r, g, b, cellX, cellY,
-                    right, top,    r, g, b, cellX, cellY,
-                    left,  top,    r, g, b, cellX, cellY
-                };
-
-                for (int i = 0; i < 42; ++i)
-                    vertices.push_back(cellVertices[i]);
+        if (currentHeights.empty()) return;
+        
+        int width = currentHeights[0].size();
+        int height = currentHeights.size();
+        
+        std::vector<float> textureData(width * height * 3); // RGB
+        
+        for (int y = 0; y < height; ++y) {
+            for (int x = 0; x < width; ++x) {
+                int index = (y * width + x) * 3;
+                textureData[index] = currentHeights[y][x];     // R: height
+                textureData[index + 1] = currentBoxState[y][x] / 2.0f; // G: cell value
+                textureData[index + 2] = 0.0f;                 // B: unused
             }
         }
+        
+        glBindTexture(GL_TEXTURE_2D, heightTexture);
+        glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB32F, width, height, 0, GL_RGB, GL_FLOAT, textureData.data());
+    }
+
+    void render()
+    {
+        if (currentBoxState.empty()) return;
+
+        glClearColor(0.05f, 0.05f, 0.1f, 1.0f);
+        glClear(GL_COLOR_BUFFER_BIT);
 
         glUseProgram(shaderProgram);
         
         // Set uniforms
-        GLuint timeLoc = glGetUniformLocation(shaderProgram, "iTime");
-        glUniform1f(timeLoc, currentTime);
+        glUniform1f(glGetUniformLocation(shaderProgram, "iTime"), currentTime);
+        glUniform2f(glGetUniformLocation(shaderProgram, "iResolution"), (float)windowWidth, (float)windowHeight);
+        glUniform2f(glGetUniformLocation(shaderProgram, "gridSize"), (float)currentBoxState[0].size(), (float)currentBoxState.size());
         
-        GLuint gridSizeLoc = glGetUniformLocation(shaderProgram, "gridSize");
-        glUniform2f(gridSizeLoc, (float)width, (float)height);
+        // Bind height texture
+        glActiveTexture(GL_TEXTURE0);
+        glBindTexture(GL_TEXTURE_2D, heightTexture);
+        glUniform1i(glGetUniformLocation(shaderProgram, "heightMap"), 0);
         
         // Set effect uniforms
         int numEffects = std::min((int)activeEffects.size(), 10);
-        GLuint numEffectsLoc = glGetUniformLocation(shaderProgram, "numEffects");
-        glUniform1i(numEffectsLoc, numEffects);
+        glUniform1i(glGetUniformLocation(shaderProgram, "numEffects"), numEffects);
         
         if (numEffects > 0) {
             std::vector<float> positions(20, 0.0f);
@@ -654,45 +783,16 @@ private:
                 durations[i] = activeEffects[i].duration;
             }
             
-            GLuint positionsLoc = glGetUniformLocation(shaderProgram, "effectPositions");
-            glUniform2fv(positionsLoc, 10, positions.data());
-            
-            GLuint startTimesLoc = glGetUniformLocation(shaderProgram, "effectStartTimes");
-            glUniform1fv(startTimesLoc, 10, startTimes.data());
-            
-            GLuint durationsLoc = glGetUniformLocation(shaderProgram, "effectDurations");
-            glUniform1fv(durationsLoc, 10, durations.data());
+            glUniform2fv(glGetUniformLocation(shaderProgram, "effectPositions"), 10, positions.data());
+            glUniform1fv(glGetUniformLocation(shaderProgram, "effectStartTimes"), 10, startTimes.data());
+            glUniform1fv(glGetUniformLocation(shaderProgram, "effectDurations"), 10, durations.data());
         }
         
-        GLuint nextMovePosLoc = glGetUniformLocation(shaderProgram, "nextMovePos");
-        glUniform2f(nextMovePosLoc, nextMovePos[0], nextMovePos[1]);
-                
-        GLuint hasNextMoveLoc = glGetUniformLocation(shaderProgram, "hasNextMove");
-        glUniform1i(hasNextMoveLoc, hasNextMove ? 1 : 0);
-        
-        // Set projection matrix
-        float projection[16] = {
-            1.0f, 0.0f, 0.0f, 0.0f,
-            0.0f, 1.0f, 0.0f, 0.0f,
-            0.0f, 0.0f, 1.0f, 0.0f,
-            0.0f, 0.0f, 0.0f, 1.0f
-        };
-        
-        GLuint projLoc = glGetUniformLocation(shaderProgram, "projection");
-        glUniformMatrix4fv(projLoc, 1, GL_FALSE, projection);
+        glUniform2f(glGetUniformLocation(shaderProgram, "nextMovePos"), nextMovePos[0], nextMovePos[1]);
+        glUniform1i(glGetUniformLocation(shaderProgram, "hasNextMove"), hasNextMove ? 1 : 0);
 
         glBindVertexArray(VAO);
-        glBindBuffer(GL_ARRAY_BUFFER, VBO);
-        glBufferData(GL_ARRAY_BUFFER, vertices.size() * sizeof(float), vertices.data(), GL_DYNAMIC_DRAW);
-
-        glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)0);
-        glEnableVertexAttribArray(0);
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(2 * sizeof(float)));
-        glEnableVertexAttribArray(1);
-        glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 7 * sizeof(float), (void*)(5 * sizeof(float)));
-        glEnableVertexAttribArray(2);
-
-        glDrawArrays(GL_TRIANGLES, 0, vertices.size() / 7);
+        glDrawArrays(GL_TRIANGLES, 0, 6);
 
         glfwSwapBuffers(window);
     }
