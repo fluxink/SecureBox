@@ -1,0 +1,131 @@
+{
+    "version": "2.0.0",
+    "tasks": [
+        {
+            "type": "shell",
+            "label": "Build OpenGL with CMake",
+            "command": "cmake",
+            "args": [
+                "--build",
+                "${workspaceFolder}/build"
+            ],
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "dependsOn": "Configure CMake with vcpkg"
+        },
+        {
+            "type": "shell",
+            "label": "Configure CMake with vcpkg",
+            "command": "cmake",
+            "args": [
+                "-S",
+                "${workspaceFolder}",
+                "-B",
+                "${workspaceFolder}/build",
+                "-G",
+                "MinGW Makefiles",
+                "-DCMAKE_TOOLCHAIN_FILE=C:/vcpkg/scripts/buildsystems/vcpkg.cmake"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            }
+        },
+        {
+            "type": "shell",
+            "label": "Build Direct with g++",
+            "command": "g++",
+            "args": [
+                "hellowindow2.cpp",
+                "-Iglad/include",
+                "-IC:/vcpkg/installed/x64-windows/include",
+                "glad/src/gl.c",
+                "-LC:/vcpkg/installed/x64-windows/lib",
+                "-lglfw3dll",
+                "-lgdi32",
+                "-lopengl32",
+                "-o",
+                "hellowindow2.exe"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": true,
+                "clear": false
+            },
+            "dependsOn": "Copy GLFW DLL"
+        },
+        {
+            "type": "shell",
+            "label": "Copy GLFW DLL",
+            "command": "copy",
+            "args": [
+                "C:/vcpkg/installed/x64-windows/bin/glfw3.dll",
+                "."
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false
+            }
+        },
+        {
+            "type": "shell",
+            "label": "Run OpenGL Application",
+            "command": "${workspaceFolder}/hellowindow2.exe",
+            "group": "test",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": true
+            }
+        },
+        {
+            "type": "shell",
+            "label": "Clean Build",
+            "command": "Remove-Item",
+            "args": [
+                "-Recurse",
+                "-Force",
+                "-Path",
+                "${workspaceFolder}/build/*",
+                "-ErrorAction",
+                "SilentlyContinue"
+            ],
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "silent",
+                "focus": false,
+                "panel": "shared",
+                "showReuseMessage": false,
+                "clear": false
+            }
+        }
+    ]
+}
