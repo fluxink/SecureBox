@@ -17,6 +17,7 @@ obj/
 *.a
 *.so
 *.dylib
+*.dll
 
 # VS Code specific
 .vscode/settings.json
