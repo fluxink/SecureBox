@@ -1,86 +1,86 @@
 # OpenGL + GLFW + GLAD Setup Guide
 
-Это руководство поможет настроить среду разработки для OpenGL с GLFW и GLAD на Windows.
+This guide will help you set up a development environment for OpenGL with GLFW and GLAD on Windows.
 
-## Требования
+## Requirements
 
 - Windows 10/11
 - MinGW-w64 (GCC)
 - Git
-- CMake (опционально)
-- Visual Studio Code (опционально)
+- CMake (optional)
+- Visual Studio Code (optional)
 
-## Быстрая автоматическая установка
+## Quick Automatic Installation
 
-Запустите PowerShell от имени администратора и выполните:
+Run PowerShell as Administrator and execute:
 
 ```powershell
 .\setup_opengl_environment.ps1
 ```
 
-## Ручная установка
+## Manual Installation
 
-### 1. Установка vcpkg
+### 1. vcpkg Installation
 
 ```powershell
-# Клонируем vcpkg
+# Clone vcpkg
 git clone https://github.com/Microsoft/vcpkg.git C:\vcpkg
 cd C:\vcpkg
 
-# Инициализируем vcpkg
+# Initialize vcpkg
 .\bootstrap-vcpkg.bat
 
-# Устанавливаем GLFW
+# Install GLFW
 .\vcpkg install glfw3:x64-windows
 ```
 
-### 2. Установка MinGW-w64 (если не установлен)
+### 2. MinGW-w64 Installation (if not installed)
 
-Скачайте и установите MinGW-w64 с официального сайта или через пакетный менеджер.
+Download and install MinGW-w64 from the official website or through a package manager.
 
-### 3. Настройка переменных окружения
+### 3. Environment Variables Setup
 
-Добавьте в PATH:
-- Путь к MinGW-w64 bin (например: `C:\mingw64\bin`)
-- Путь к vcpkg (например: `C:\vcpkg`)
+Add to PATH:
+- Path to MinGW-w64 bin (e.g.: `C:\mingw64\bin`)
+- Path to vcpkg (e.g.: `C:\vcpkg`)
 
-## Компиляция проекта
+## Project Compilation
 
-### Метод 1: CMake (рекомендуется)
+### Method 1: CMake (recommended)
 
 ```powershell
-# Настройка проекта
+# Project setup
 cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
 
-# Сборка
+# Build
 cmake --build build
 
-# Запуск
+# Run
 .\build\hellowindow2.exe
 ```
 
-### Метод 2: Прямая компиляция
+### Method 2: Direct compilation
 
 ```powershell
-# Компиляция
+# Compilation
 g++ hellowindow2.cpp -Iglad/include -I"C:\vcpkg\installed\x64-windows\include" glad/src/gl.c -L"C:\vcpkg\installed\x64-windows\lib" -lglfw3dll -lgdi32 -lopengl32 -o hellowindow2.exe
 
-# Копирование DLL
+# Copy DLL
 copy "C:\vcpkg\installed\x64-windows\bin\glfw3.dll" .
 
-# Запуск
+# Run
 .\hellowindow2.exe
 ```
 
-### Метод 3: Использование bat файла
+### Method 3: Using batch file
 
 ```cmd
 compile_opengl.bat
 ```
 
-## Настройка VS Code
+## VS Code Setup
 
-Для корректной работы IntelliSense в VS Code, убедитесь что в `.vscode/c_cpp_properties.json` указаны правильные пути:
+For correct IntelliSense operation in VS Code, make sure the correct paths are specified in `.vscode/c_cpp_properties.json`:
 
 ```json
 {
@@ -106,38 +106,38 @@ compile_opengl.bat
 
 ```
 project/
-├── hellowindow2.cpp          # Основной исходный файл
-├── CMakeLists.txt            # CMake конфигурация
-├── glad/                     # GLAD библиотека
+├── hellowindow2.cpp          # Main source file
+├── CMakeLists.txt            # CMake configuration
+├── glad/                     # GLAD library
 │   ├── include/
 │   │   ├── glad/gl.h
 │   │   └── KHR/khrplatform.h
 │   └── src/gl.c
-├── compile_opengl.bat        # Batch файл для компиляции
-├── setup_opengl_environment.ps1  # Скрипт автоустановки
+├── compile_opengl.bat        # Batch file for compilation
+├── setup_opengl_environment.ps1  # Auto-setup script
 └── .vscode/
-    └── c_cpp_properties.json # Настройки VS Code
+    └── c_cpp_properties.json # VS Code settings
 ```
 
-## Устранение проблем
+## Troubleshooting
 
-### Ошибка: "glad/gl.h: No such file or directory"
-- Убедитесь, что папка `glad/include` существует
-- Проверьте флаг `-Iglad/include` в команде компиляции
+### Error: "glad/gl.h: No such file or directory"
+- Make sure the `glad/include` folder exists
+- Check the `-Iglad/include` flag in the compilation command
 
-### Ошибка: "GLFW/glfw3.h: No such file or directory"
-- Убедитесь, что vcpkg установлен и GLFW установлен через vcpkg
-- Проверьте путь к заголовкам vcpkg в команде компиляции
+### Error: "GLFW/glfw3.h: No such file or directory"
+- Make sure vcpkg is installed and GLFW is installed through vcpkg
+- Check the vcpkg headers path in the compilation command
 
-### Ошибка запуска: "glfw3.dll not found"
-- Скопируйте `glfw3.dll` из `vcpkg/installed/x64-windows/bin/` в папку с exe файлом
+### Runtime error: "glfw3.dll not found"
+- Copy `glfw3.dll` from `vcpkg/installed/x64-windows/bin/` to the folder with the exe file
 
-### Ошибка: "Failed to create GLFW window"
-- Убедитесь, что ваша видеокарта поддерживает OpenGL 3.3+
-- Попробуйте изменить версию OpenGL в коде
+### Error: "Failed to create GLFW window"
+- Make sure your graphics card supports OpenGL 3.3+
+- Try changing the OpenGL version in the code
 
-## Дополнительные ресурсы
+## Additional Resources
 
-- [LearnOpenGL](https://learnopengl.com/) - отличный учебник по OpenGL
+- [LearnOpenGL](https://learnopengl.com/) - excellent OpenGL tutorial
 - [GLFW Documentation](https://www.glfw.org/documentation.html)
-- [GLAD Generator](https://glad.dav1d.de/) - для генерации GLAD файлов
+- [GLAD Generator](https://glad.dav1d.de/) - for generating GLAD files

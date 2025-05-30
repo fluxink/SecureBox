@@ -1,33 +1,33 @@
 # C++ Test Project with OpenGL Support
 
-Этот проект демонстрирует настройку среды разработки для C++ с поддержкой OpenGL, GLFW и GLAD.
+This project demonstrates setting up a development environment for C++ with OpenGL, GLFW, and GLAD support.
 
-## 🚀 Быстрый старт
+## 🚀 Quick Start
 
-### Автоматическая установка (рекомендуется)
+### Automatic Installation (Recommended)
 
-1. **Запустите PowerShell от имени администратора**
-2. **Выполните автоустановку:**
+1. **Run PowerShell as Administrator**
+2. **Execute automatic setup:**
    ```powershell
    .\setup_opengl_environment.ps1
    ```
 
-### Настройка VS Code
+### VS Code Setup
 ```cmd
 setup_vscode.bat
 ```
 
-### Компиляция и запуск
+### Compilation and Execution
 ```cmd
-REM Метод 1: Batch файл (самый простой)
+REM Method 1: Batch file (simplest)
 compile_opengl.bat
 
-REM Метод 2: CMake
+REM Method 2: CMake
 cmake -S . -B build -G "MinGW Makefiles" -DCMAKE_TOOLCHAIN_FILE=C:\vcpkg\scripts\buildsystems\vcpkg.cmake
 cmake --build build
 .\build\hellowindow2.exe
 
-REM Метод 3: Прямая компиляция
+REM Method 3: Direct compilation
 g++ hellowindow2.cpp -Iglad/include -I"C:\vcpkg\installed\x64-windows\include" glad/src/gl.c -L"C:\vcpkg\installed\x64-windows\lib" -lglfw3dll -lgdi32 -lopengl32 -o hellowindow2.exe
 ```
 
@@ -38,51 +38,51 @@ g++ hellowindow2.cpp -Iglad/include -I"C:\vcpkg\installed\x64-windows\include" g
 ├── hellowindow2.cpp                   # OpenGL пример с GLFW и GLAD
 ├── CMakeLists.txt                     # CMake конфигурация
 │
-├── 📋 Документация и инструкции
-├── README.md                          # Этот файл
-├── SETUP_GUIDE.md                     # Подробное руководство по установке
+├── 📋 Documentation and Instructions
+├── README.md                          # This file
+├── SETUP_GUIDE.md                     # Detailed installation guide
 │
-├── 🔧 Скрипты автоматизации
-├── setup_opengl_environment.ps1      # Автоустановка всего окружения
-├── compile_opengl.bat                 # Простая компиляция OpenGL
-├── setup_vscode.bat                   # Настройка VS Code конфигурации
+├── 🔧 Automation Scripts
+├── setup_opengl_environment.ps1      # Automatic environment setup
+├── compile_opengl.bat                 # Simple OpenGL compilation
+├── setup_vscode.bat                   # VS Code configuration setup
 │
-├── 📋 Шаблоны конфигурации
-├── tasks_template.json               # Шаблон задач для VS Code
-├── c_cpp_properties_template.json    # Шаблон IntelliSense для VS Code
+├── 📋 Configuration Templates
+├── tasks_template.json               # VS Code tasks template
+├── c_cpp_properties_template.json    # VS Code IntelliSense template
 │
-├── 📚 Библиотеки
+├── 📚 Libraries
 ├── glad/                             # GLAD OpenGL loader
 │   ├── include/
 │   └── src/
 │
-└── 🔨 Сборка
-    ├── build/                        # CMake build файлы
-    ├── *.exe                         # Скомпилированные программы
-    └── *.dll                         # Необходимые библиотеки
+└── 🔨 Build
+    ├── build/                        # CMake build files
+    ├── *.exe                         # Compiled programs
+    └── *.dll                         # Required libraries
 ```
 
-## 🛠 Доступные скрипты
+## 🛠 Available Scripts
 
-| Скрипт | Описание |
+| Script | Description |
 |--------|----------|
-| `setup_opengl_environment.ps1` | Полная автоматическая установка окружения |
-| `compile_opengl.bat` | Компиляция OpenGL проекта (самый простой способ) |
-| `setup_vscode.bat` | Настройка конфигурации VS Code |
+| `setup_opengl_environment.ps1` | Complete automatic environment setup |
+| `compile_opengl.bat` | OpenGL project compilation (simplest method) |
+| `setup_vscode.bat` | VS Code configuration setup |
 
-## 📖 Подробная документация
+## 📖 Detailed Documentation
 
-Смотрите [SETUP_GUIDE.md](SETUP_GUIDE.md) для:
-- Подробных инструкций по ручной установке
-- Решения проблем
-- Объяснения структуры проекта
-- Дополнительных ресурсов
+See [SETUP_GUIDE.md](SETUP_GUIDE.md) for:
+- Detailed manual installation instructions
+- Troubleshooting
+- Project structure explanation
+- Additional resources
 
 ## 🎯 Примеры
 
-### Основной C++ пример
+### Basic C++ Example
 ```cpp
-// main.cpp - простой Hello World
+// main.cpp - simple Hello World
 #include <iostream>
 int main() {
     std::cout << "Hello, C++!" << std::endl;
@@ -90,44 +90,44 @@ int main() {
 }
 ```
 
-### OpenGL пример
+### OpenGL Example
 ```cpp
-// hellowindow2.cpp - создание окна OpenGL с GLFW и GLAD
-// Демонстрирует инициализацию OpenGL и основной цикл рендеринга
+// hellowindow2.cpp - creating OpenGL window with GLFW and GLAD
+// Demonstrates OpenGL initialization and basic render loop
 ```
 
-## 🔧 Требования
+## 🔧 Requirements
 
 - **Windows 10/11**
-- **MinGW-w64** (GCC компилятор)
+- **MinGW-w64** (GCC compiler)
 - **Git**
-- **PowerShell** (для автоустановки)
-- **Visual Studio Code** (опционально, для разработки)
+- **PowerShell** (for automatic setup)
+- **Visual Studio Code** (optional, for development)
 
-## 🏃‍♂️ Для нетерпеливых
+## 🏃‍♂️ For the Impatient
 
 ```cmd
-REM 1. Скачайте проект
+REM 1. Download the project
 git clone <your-repo-url>
 cd cpp_test
 
-REM 2. Запустите автоустановку (PowerShell от имени администратора)
+REM 2. Run automatic setup (PowerShell as Administrator)
 .\setup_opengl_environment.ps1
 
-REM 3. Настройте VS Code (опционально)
+REM 3. Setup VS Code (optional)
 setup_vscode.bat
 
-REM 4. Скомпилируйте и запустите
+REM 4. Compile and run
 compile_opengl.bat
 ```
 
-## 🆘 Помощь
+## 🆘 Help
 
-Если что-то не работает:
-1. Проверьте [SETUP_GUIDE.md](SETUP_GUIDE.md) раздел "Устранение проблем"
-2. Убедитесь что все требования установлены
-3. Проверьте пути в скриптах (особенно путь к vcpkg)
+If something doesn't work:
+1. Check [SETUP_GUIDE.md](SETUP_GUIDE.md) "Troubleshooting" section
+2. Make sure all requirements are installed
+3. Check paths in scripts (especially vcpkg path)
 
 ---
 
-**Совет:** Используйте `compile_opengl.bat` для быстрой компиляции без настройки CMake!
+**Tip:** Use `compile_opengl.bat` for quick compilation without CMake setup!

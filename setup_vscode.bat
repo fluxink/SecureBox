@@ -1,42 +1,42 @@
 @echo off
-REM Скрипт для настройки VS Code конфигурации
+REM Script for setting up VS Code configuration
 
 echo ==========================================
 echo   VS Code Configuration Setup
 echo ==========================================
 echo.
 
-REM Создаем папку .vscode если её нет
+REM Create .vscode folder if it doesn't exist
 if not exist ".vscode" (
     mkdir .vscode
-    echo Создана папка .vscode
+    echo Created .vscode folder
 )
 
-REM Копируем конфигурацию IntelliSense
+REM Copy IntelliSense configuration
 if not exist ".vscode\c_cpp_properties.json" (
     copy c_cpp_properties_template.json .vscode\c_cpp_properties.json >nul
-    echo ✓ Скопирован c_cpp_properties.json
+    echo ✓ Copied c_cpp_properties.json
 ) else (
-    echo ! c_cpp_properties.json уже существует
+    echo ! c_cpp_properties.json already exists
 )
 
-REM Копируем задачи VS Code
+REM Copy VS Code tasks
 if not exist ".vscode\tasks.json" (
     copy tasks_template.json .vscode\tasks.json >nul
-    echo ✓ Скопирован tasks.json
+    echo ✓ Copied tasks.json
 ) else (
-    echo ! tasks.json уже существует
+    echo ! tasks.json already exists
 )
 
 echo.
-echo Настройка завершена!
+echo Setup completed!
 echo.
-echo Теперь в VS Code доступны следующие задачи:
+echo The following tasks are now available in VS Code:
 echo - Build OpenGL with CMake (Ctrl+Shift+P → "Tasks: Run Task")
 echo - Build Direct with g++
 echo - Run OpenGL Application
 echo - Clean Build
 echo.
-echo Также настроен IntelliSense для корректного распознавания заголовков.
+echo IntelliSense is also configured for correct header recognition.
 echo.
 pause

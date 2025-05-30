@@ -1,99 +1,99 @@
-# 🎯 Результат: Полный комплект для настройки OpenGL разработки
+# 🎯 Result: Complete Kit for OpenGL Development Setup
 
-## ✅ Что мы создали
+## ✅ What We Created
 
-### 📋 Документация
-- **`SETUP_GUIDE.md`** - Подробное руководство по установке и настройке
-- **`README.md`** - Обновленный README с кратким обзором и быстрым стартом
+### 📋 Documentation
+- **`SETUP_GUIDE.md`** - Detailed installation and configuration guide
+- **`README.md`** - Updated README with brief overview and quick start
 
-### 🔧 Скрипты автоматизации
-- **`setup_opengl_environment.ps1`** - Полная автоматическая установка всего окружения (vcpkg, GLFW, настройка PATH)
-- **`compile_opengl.bat`** - Простая компиляция OpenGL проекта одним кликом
-- **`setup_vscode.bat`** - Автоматическая настройка VS Code конфигурации
+### 🔧 Automation Scripts
+- **`setup_opengl_environment.ps1`** - Complete automatic installation of entire environment (vcpkg, GLFW, PATH setup)
+- **`compile_opengl.bat`** - Simple OpenGL project compilation with one click
+- **`setup_vscode.bat`** - Automatic VS Code configuration setup
 
-### 📋 Шаблоны конфигурации
-- **`tasks_template.json`** - Готовые задачи для VS Code (сборка, запуск, очистка)
-- **`c_cpp_properties_template.json`** - Настройки IntelliSense для VS Code
+### 📋 Configuration Templates
+- **`tasks_template.json`** - Ready-made tasks for VS Code (build, run, clean)
+- **`c_cpp_properties_template.json`** - IntelliSense settings for VS Code
 
-## 🚀 Как использовать
+## 🚀 How to Use
 
-### Для нового пользователя:
+### For new users:
 
-1. **Автоустановка окружения** (запуск от имени администратора):
+1. **Auto-install environment** (run as administrator):
    ```powershell
    .\setup_opengl_environment.ps1
    ```
 
-2. **Настройка VS Code**:
+2. **Setup VS Code**:
    ```cmd
    setup_vscode.bat
    ```
 
-3. **Компиляция и запуск**:
+3. **Compile and run**:
    ```cmd
    compile_opengl.bat
    ```
 
-### Для опытного пользователя:
+### For experienced users:
 
-- Используйте CMake workflow с vcpkg toolchain
-- Настройте свои собственные задачи в VS Code
-- Читайте `SETUP_GUIDE.md` для детального понимания
+- Use CMake workflow with vcpkg toolchain
+- Configure your own tasks in VS Code
+- Read `SETUP_GUIDE.md` for detailed understanding
 
-## 🎁 Преимущества нашего решения
+## 🎁 Advantages of Our Solution
 
-### ✨ Простота использования
-- **Один клик** для компиляции (`compile_opengl.bat`)
-- **Автоматическая установка** всех зависимостей
-- **Готовые конфигурации** для VS Code
+### ✨ Ease of Use
+- **One click** for compilation (`compile_opengl.bat`)
+- **Automatic installation** of all dependencies
+- **Ready configurations** for VS Code
 
-### 🔧 Гибкость
-- **Три метода компиляции**: CMake, прямая компиляция, batch файл
-- **Настраиваемые пути** в скриптах
-- **Совместимость** с разными версиями Windows
+### 🔧 Flexibility
+- **Three compilation methods**: CMake, direct compilation, batch file
+- **Configurable paths** in scripts
+- **Compatibility** with different Windows versions
 
-### 📚 Образовательная ценность
-- **Подробная документация** объясняет каждый шаг
-- **Комментарии в коде** объясняют что происходит
-- **Решение проблем** в документации
+### 📚 Educational Value
+- **Detailed documentation** explains each step
+- **Code comments** explain what's happening
+- **Problem solving** in documentation
 
-### 🛡 Надежность
-- **Проверка зависимостей** в скриптах
-- **Обработка ошибок** и понятные сообщения
-- **Fallback варианты** для разных конфигураций
+### 🛡 Reliability
+- **Dependency checking** in scripts
+- **Error handling** and clear messages
+- **Fallback options** for different configurations
 
-## 📦 Файлы готовые к распространению
+## 📦 Files Ready for Distribution
 
-Все созданные файлы можно распространять как единый пакет:
+All created files can be distributed as a single package:
 
 ```
 opengl_starter_kit/
-├── 📋 Документация
+├── 📋 Documentation
 ├── README.md
 ├── SETUP_GUIDE.md
 ├── 
-├── 🔧 Скрипты
+├── 🔧 Scripts
 ├── setup_opengl_environment.ps1
 ├── compile_opengl.bat
 ├── setup_vscode.bat
 ├── 
-├── 📋 Шаблоны
+├── 📋 Templates
 ├── tasks_template.json
 ├── c_cpp_properties_template.json
 ├── 
-├── 📁 Примеры кода
+├── 📁 Code Examples
 ├── hellowindow2.cpp
 ├── CMakeLists.txt
-└── glad/ (папка с GLAD файлами)
+└── glad/ (folder with GLAD files)
 ```
 
-## 🎊 Готово!
+## 🎊 Done!
 
-Теперь любой пользователь может:
-1. Скачать ваш проект
-2. Запустить `setup_opengl_environment.ps1`
-3. Выполнить `setup_vscode.bat`
-4. Нажать `compile_opengl.bat`
-5. **Наслаждаться OpenGL разработкой!**
+Now any user can:
+1. Download your project
+2. Run `setup_opengl_environment.ps1`
+3. Execute `setup_vscode.bat`
+4. Click `compile_opengl.bat`
+5. **Enjoy OpenGL development!**
 
-**"It works on my machine"** теперь станет **"It works on everyone's machine"**! 🎉
+**"It works on my machine"** now becomes **"It works on everyone's machine"**! 🎉
