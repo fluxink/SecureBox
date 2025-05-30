@@ -1,9 +1,10 @@
 {
-    "configurations": [
-        {
+    "configurations": [        {
             "name": "Win32",
             "includePath": [
-                "${workspaceFolder}/**"
+                "${workspaceFolder}/**",
+                "${workspaceFolder}/glad/include",
+                "D:/Pavel/vcpkg/installed/x64-windows/include"
             ],
             "defines": [
                 "_DEBUG",

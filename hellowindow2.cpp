@@ -11,8 +11,9 @@
 // http://learnopengl.com/code_viewer.php?code=getting-started/hellowindow2
 // The code originally used GLEW, I replaced it with Glad
 
-// Compile:
-// g++ example/c++/hellowindow2.cpp -Ibuild/include glad/src/gl.c -lglfw -ldl
+// Compile with vcpkg:
+// g++ hellowindow2.cpp -Iglad/include -I"D:\Pavel\vcpkg\installed\x64-windows\include" glad/src/gl.c -L"D:\Pavel\vcpkg\installed\x64-windows\lib" -lglfw3dll -lgdi32 -lopengl32 -o hellowindow2_direct.exe
+// Don't forget to copy glfw3.dll: copy "D:\Pavel\vcpkg\installed\x64-windows\bin\glfw3.dll" .
 
 
 // Function prototypes
