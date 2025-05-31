@@ -510,11 +510,15 @@ vec3 getColor(vec2 p) {
         }
     }
     if (hasNextMove) {
-        vec2 worldNextPos = (nextMovePos - gridSize * 0.5);
-        float distToNext = length(p - worldNextPos);
-        if (distToNext < 0.6) {
+        vec2 cellCenter = nextMovePos + 0.5 - gridSize * 0.5;
+        
+        float distToNext = length(p - cellCenter);
+        
+        float cellRadius = 0.4;
+        
+        if (distToNext < cellRadius) {
             float pulse = 0.5 + 0.5 * sin(iTime * 4.0);
-            finalColor = mix(finalColor, vec3(1.0, 1.0, 1.0), pulse * 0.5);
+            finalColor = mix(finalColor, vec3(0.0, 0.0, 0.0), pulse);
         }
     }
     
@@ -907,7 +911,7 @@ private:
             
             for (int i = 0; i < numEffects; ++i) {
                 positions[i * 2] = (float)activeEffects[i].toggleX;
-                positions[i * 2 + 1] = (float)activeEffects[i].toggleY;
+                positions[i * 2 + 1] = (float)currentBoxState.size() - 1 - activeEffects[i].toggleY; // Flip Y
                 startTimes[i] = activeEffects[i].startTime;
                 durations[i] = activeEffects[i].duration;
             }
@@ -917,7 +921,7 @@ private:
             glUniform1fv(glGetUniformLocation(shaderProgram, "effectDurations"), 10, durations.data());
         }
         
-        glUniform2f(glGetUniformLocation(shaderProgram, "nextMovePos"), nextMovePos[0], nextMovePos[1]);
+        glUniform2f(glGetUniformLocation(shaderProgram, "nextMovePos"), nextMovePos[0], (float)currentBoxState.size() - 1 - nextMovePos[1]); // Flip Y
         glUniform1i(glGetUniformLocation(shaderProgram, "hasNextMove"), hasNextMove ? 1 : 0);
 
         glBindVertexArray(VAO);
