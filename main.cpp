@@ -991,7 +991,7 @@ private:
 // Function: openBox
 // Description:
 //     Opens the SecureBox and allows the user to interact with it.
-//     If OpenGL is available, it uses a graphical interface; otherwise, it falls back to console mode.
+//     Always shows console output, with optional OpenGL visualization for comparison.
 //================================================================================
 bool openBox(SecureBox &box, bool useOpenGL)
 {
@@ -1009,14 +1009,22 @@ bool openBox(SecureBox &box, bool useOpenGL)
             delete renderer;
             renderer = nullptr;
             useOpenGL = false;
-            std::cout << "Falling back to console mode..." << std::endl;
+            std::cout << "OpenGL initialization failed, continuing with console only..." << std::endl;
+        }
+        else
+        {
+            std::cout << "OpenGL visualization active - compare with console output below!" << std::endl;
         }
     }
 
+    // Always show initial console state
+    clearScreen();
+    displayBoxConsole(box, "Initial SecureBox State");
+    
     if (useOpenGL && renderer)
     {
         renderer->updateBoxState(box);
-        std::cout << "Press SPACE to continue, ESC to exit..." << std::endl;
+        std::cout << "\nOpenGL window opened - Press SPACE in OpenGL window to continue..." << std::endl;
         
         if (!renderer->waitForSpace())
         {
@@ -1027,8 +1035,6 @@ bool openBox(SecureBox &box, bool useOpenGL)
     }
     else
     {
-        clearScreen();
-        displayBoxConsole(box, "Initial SecureBox State");
         waitForEnter("Press Enter to start solving...");
     }
 
@@ -1069,7 +1075,7 @@ bool openBox(SecureBox &box, bool useOpenGL)
         }
     }
 
-    std::cout << "Solving linear system..." << std::endl;
+    std::cout << "\nSolving linear system..." << std::endl;
     std::vector<int> solution = solveLinearSystem(effectMatrix, target);
 
     // Collect all moves
@@ -1107,14 +1113,19 @@ bool openBox(SecureBox &box, bool useOpenGL)
 
     if (useOpenGL && renderer)
     {
-        std::cout << "Press SPACE to apply next toggle (rapid presses create overlapping effects)" << std::endl;
+        std::cout << "\n" << BOLD << CYAN << "=== DUAL VISUALIZATION MODE ===" << RESET << std::endl;
+        std::cout << "Console shows step-by-step changes below" << std::endl;
+        std::cout << "OpenGL window shows 3D animated visualization" << std::endl;
+        std::cout << "Press SPACE in OpenGL window to apply next toggle" << std::endl;
+        std::cout << std::string(50, '=') << std::endl;
         
-        // Main interaction loop
+        // Main interaction loop with console updates
         while (currentMove < moves.size() && !renderer->shouldCloseWindow())
         {
             if (currentMove < moves.size()) {
                 renderer->setNextMove(moves[currentMove].x, moves[currentMove].y);
             }
+            
             // Render frame and check for input
             renderer->renderFrame();
             
@@ -1122,7 +1133,13 @@ bool openBox(SecureBox &box, bool useOpenGL)
             {
                 auto& move = moves[currentMove];
                 
-                std::cout << "Step " << step++ << ": Toggle(" << move.x << ", " << move.y << ")" << std::endl;
+                // Clear and show console state before toggle
+                clearScreen();
+                std::cout << BOLD << YELLOW << "Step " << step << ": Applying Toggle(" << move.x << ", " << move.y << ")" << RESET << std::endl;
+                std::cout << "Move " << (currentMove + 1) << " of " << moves.size() << std::endl;
+                std::cout << std::string(50, '-') << std::endl;
+                
+                displayBoxConsole(box, "State BEFORE Toggle");
                 
                 // Add animation effect (non-blocking)
                 renderer->addAnimationEffect(step, move.x, move.y, 1.5f);
@@ -1131,6 +1148,20 @@ bool openBox(SecureBox &box, bool useOpenGL)
                 box.toggle(move.x, move.y);
                 renderer->updateBoxState(box);
                 
+                // Show state after toggle
+                displayBoxConsole(box, "State AFTER Toggle");
+                
+                if (!box.isLocked())
+                {
+                    std::cout << BOLD << GREEN << "\n🎉 SUCCESS! Box is now unlocked! 🎉" << RESET << std::endl;
+                    std::cout << "Both console and OpenGL should show all cells as [0] (green)" << std::endl;
+                }
+                else
+                {
+                    std::cout << "Press SPACE in OpenGL window for next step..." << std::endl;
+                }
+                
+                step++;
                 currentToggleCount++;
                 if (currentToggleCount >= move.count)
                 {
@@ -1140,11 +1171,11 @@ bool openBox(SecureBox &box, bool useOpenGL)
                 
                 if (!box.isLocked())
                 {
-                    std::cout << "SUCCESS! Box is now unlocked!" << std::endl;
                     renderer->waitForSpace();
                     break;
                 }
             }
+            
             if (currentMove < moves.size()) {
                 renderer->setNextMove(moves[currentMove].x, moves[currentMove].y);
             } else {
@@ -1156,24 +1187,37 @@ bool openBox(SecureBox &box, bool useOpenGL)
     }
     else
     {
-        // Console mode - sequential
+        // Console-only mode
+        std::cout << "\n" << BOLD << CYAN << "=== CONSOLE-ONLY MODE ===" << RESET << std::endl;
+        std::cout << "Applying solution step by step..." << std::endl;
+        std::cout << std::string(40, '=') << std::endl;
+        
         for (const auto& move : moves)
         {
             for (int t = 0; t < move.count; ++t)
             {
                 clearScreen();
-                std::cout << "Step " << step++ << ": Toggle(" << move.x << ", " << move.y << ")" << std::endl;
+                std::cout << BOLD << YELLOW << "Step " << step << ": Applying Toggle(" << move.x << ", " << move.y << ")" << RESET << std::endl;
+                std::cout << "Toggle " << (t + 1) << " of " << move.count << " for this position" << std::endl;
+                std::cout << std::string(50, '-') << std::endl;
+                
+                displayBoxConsole(box, "State BEFORE Toggle");
+                
                 box.toggle(move.x, move.y);
-                displayBoxConsole(box, "SecureBox State After Toggle");
+                
+                displayBoxConsole(box, "State AFTER Toggle");
 
                 if (box.isLocked())
-                    waitForEnter();
+                {
+                    waitForEnter("Press Enter for next step...");
+                }
                 else
                 {
-                    std::cout << "SUCCESS! Box is now unlocked!" << std::endl;
+                    std::cout << BOLD << GREEN << "\n🎉 SUCCESS! Box is now unlocked! 🎉" << RESET << std::endl;
                     waitForEnter("Press Enter to finish...");
                     break;
                 }
+                step++;
             }
             if (!box.isLocked()) break;
         }
@@ -1195,6 +1239,9 @@ int main(int argc, char *argv[])
         std::cout << "Usage: " << argv[0] << " <width> <height> [--console]" << std::endl;
         std::cout << "Example: " << argv[0] << " 4 3" << std::endl;
         std::cout << "         " << argv[0] << " 4 3 --console" << std::endl;
+        std::cout << "\nVisualization modes:" << std::endl;
+        std::cout << "  Default: Dual mode (Console + OpenGL 3D)" << std::endl;
+        std::cout << "  --console: Console only mode" << std::endl;
         return 1;
     }
 
@@ -1211,26 +1258,35 @@ int main(int argc, char *argv[])
     SecureBox box(x, y);
     bool useOpenGL = !forceConsole;
     
+    std::cout << BOLD << CYAN << "SecureBox Solver" << RESET << std::endl;
+    std::cout << "Grid size: " << x << "×" << y << std::endl;
+    
     if (useOpenGL)
-        std::cout << "Attempting to use OpenGL rendering..." << std::endl;
+    {
+        std::cout << "Mode: Dual visualization (Console + OpenGL)" << std::endl;
+        std::cout << "You'll see both console output and 3D visualization for comparison" << std::endl;
+    }
     else
-        std::cout << "Using console mode..." << std::endl;
+    {
+        std::cout << "Mode: Console only" << std::endl;
+    }
+    
+    std::cout << std::string(50, '=') << std::endl;
 
     bool state = openBox(box, useOpenGL);
 
-    if (!useOpenGL)
-    {
-        clearScreen();
-        displayBoxConsole(box, "Final SecureBox State");
-    }
+    // Always show final console state
+    clearScreen();
+    std::cout << BOLD << CYAN << "=== FINAL RESULT ===" << RESET << std::endl;
+    displayBoxConsole(box, "Final SecureBox State");
 
     if (!state)
     {
-        std::cout << "BOX: LOCKED!" << std::endl;
+        std::cout << RED << "BOX: LOCKED!" << RESET << std::endl;
     }
     else
     {
-        std::cout << "BOX: OPENED!" << std::endl;
+        std::cout << GREEN << "BOX: OPENED!" << RESET << std::endl;
     }
 
     return state ? 0 : 1;
