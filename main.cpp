@@ -7,7 +7,6 @@
 #include <string>
 #include <thread>
 #include <chrono>
-#include <mutex>
 #include <array>
 #include <algorithm>
 
@@ -319,7 +318,6 @@ private:
     std::vector<std::vector<uint8_t>> currentBoxState;
     std::vector<std::vector<float>> targetHeights;
     std::vector<std::vector<float>> currentHeights;
-    std::mutex stateMutex;
     
     // Multiple animation effects
     struct AnimationEffect {
