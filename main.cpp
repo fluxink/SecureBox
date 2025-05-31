@@ -25,7 +25,34 @@
 //
 // Goal: Use toggle(x, y) operations to reach a fully unlocked state (all 0s).
 //===========================================================================
+// # SecureBox API
+//===========================================================================
+//
+// Public methods of the SecureBox class:
+//
+// void toggle(uint32_t x, uint32_t y)
+//     Increments the state of:
+//         - the cell at (x, y)
+//         - all cells in the same row
+//         - all cells in the same column
+//
+// bool isLocked()
+//     Returns true if at least one cell is non-zero (locked or partially locked).
+//     Returns false only when all cells are 0 (unlocked).
+//
+// std::vector<std::vector<uint8_t>> getState()
+//     Returns a copy of the current box state (2D grid of values).
+// 
+//================================================================================
 
+//================================================================================
+// Class: SecureBox
+// Description:
+//     Represents a 2D grid of integer states:
+//         0 = fully unlocked
+//         1 = partially locked
+//         2 = fully locked
+//================================================================================
 class SecureBox
 {
 private:
@@ -34,6 +61,13 @@ private:
     uint32_t xSize, ySize;
 
 public:
+
+    //================================================================================
+    // Constructor: SecureBox
+    // Description:
+    //     Initializes the box with dimensions x × y and randomizes the grid
+    //     using pseudo-random toggle operations.
+    //================================================================================
     SecureBox(uint32_t x, uint32_t y) : xSize(x), ySize(y)
     {
         rng.seed(time(0));
@@ -43,6 +77,14 @@ public:
         shuffle();
     }
 
+    //================================================================================
+    // Method: toggle
+    // Description:
+    //     Applies modulo-3 increment to:
+    //         - all cells in column x (↑↓)
+    //         - all cells in row y (←→)
+    //         - compensates the (x, y) cell by incrementing it again (+2 mod 3)
+    //================================================================================
     void toggle(uint32_t x, uint32_t y)
     {
         // Vertical (column)
@@ -57,6 +99,12 @@ public:
         box[y][x] = (box[y][x] + 2) % 3;
     }
 
+    //================================================================================
+    // Method: isLocked
+    // Description:
+    //     Returns true if any cell is not 0 (i.e. locked or partially locked).
+    //     Returns false only if all cells are fully unlocked (0).
+    //================================================================================
     bool isLocked() const
     {
         for (const auto &row : box)
@@ -66,6 +114,11 @@ public:
         return false;
     }
 
+    //================================================================================
+    // Method: getState
+    // Description:
+    //     Returns a deep copy of the current grid state.
+    //================================================================================
     std::vector<std::vector<uint8_t>> getState() const
     {
         return box;
@@ -75,6 +128,13 @@ public:
     uint32_t getHeight() const { return ySize; }
 
 private:
+
+    //================================================================================
+    // Method: shuffle
+    // Description:
+    //     Randomly toggles cells multiple times to generate
+    //     a scrambled starting configuration.
+    //================================================================================
     void shuffle()
     {
         for (uint32_t t = rng() % 0x1000; t > 0; --t)
@@ -929,9 +989,11 @@ private:
 };
 
 //================================================================================
-// Main solving algorithm
+// Function: openBox
+// Description:
+//     Opens the SecureBox and allows the user to interact with it.
+//     If OpenGL is available, it uses a graphical interface; otherwise, it falls back to console mode.
 //================================================================================
-
 bool openBox(SecureBox &box, bool useOpenGL)
 {
     uint32_t width = box.getWidth();
