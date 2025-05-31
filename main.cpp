@@ -9,11 +9,11 @@
 #include <chrono>
 #include <mutex>
 #include <array>
+#include <algorithm>
 
 // OpenGL headers
 #include <glad/gl.h>
 #include <GLFW/glfw3.h>
-#include <algorithm>
 
 //===========================================================================
 // # PROBLEM: Total Unlocking of the SecureBox

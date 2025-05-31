@@ -4,7 +4,7 @@
         {
             "type": "shell",
             "label": "Build with CMake",
-            "command": "cmake",
+            "command": "C:\\Program Files\\CMake\\bin\\cmake.exe",
             "args": [
                 "--build",
                 "${workspaceFolder}/build"
@@ -23,7 +23,7 @@
         {
             "type": "shell",
             "label": "Configure CMake",
-            "command": "cmake",
+            "command": "C:\\Program Files\\CMake\\bin\\cmake.exe",
             "args": [
                 "-S",
                 "${workspaceFolder}",
