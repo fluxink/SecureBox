@@ -865,7 +865,8 @@ private:
         
         for (int y = 0; y < height; ++y) {
             for (int x = 0; x < width; ++x) {
-                int index = (y * width + x) * 3;
+                int flippedY = height - 1 - y;
+                int index = (flippedY * width + x) * 3;
                 textureData[index] = currentHeights[y][x];     // R: height
                 textureData[index + 1] = (float)currentBoxState[y][x]; // G: cell value
                 textureData[index + 2] = 0.0f;                 // B: unused
@@ -1153,7 +1154,7 @@ bool openBox(SecureBox &box, bool useOpenGL)
                 
                 if (!box.isLocked())
                 {
-                    std::cout << BOLD << GREEN << "\n🎉 SUCCESS! Box is now unlocked! 🎉" << RESET << std::endl;
+                    std::cout << BOLD << GREEN << "\nSUCCESS! Box is now unlocked!" << RESET << std::endl;
                     std::cout << "Both console and OpenGL should show all cells as [0] (green)" << std::endl;
                 }
                 else
@@ -1213,7 +1214,7 @@ bool openBox(SecureBox &box, bool useOpenGL)
                 }
                 else
                 {
-                    std::cout << BOLD << GREEN << "\n🎉 SUCCESS! Box is now unlocked! 🎉" << RESET << std::endl;
+                    std::cout << BOLD << GREEN << "\nSUCCESS! Box is now unlocked!" << RESET << std::endl;
                     waitForEnter("Press Enter to finish...");
                     break;
                 }
