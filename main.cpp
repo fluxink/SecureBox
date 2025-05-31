@@ -347,6 +347,7 @@ void main()
 }
 )";
 
+// Based on https://www.shadertoy.com/view/dsc3RS
     const char* fragmentShaderSource = R"(
 #version 330 core
 in vec2 fragCoord;
@@ -430,9 +431,9 @@ float getHeight(vec2 p) {
 }
 
 vec3 getBaseColor(float val) {
-    if (val < 0.33) {
+    if (val < .5) {
         return vec3(0.2, 0.8, 0.2); // Green for 0
-    } else if (val < 0.67) {
+    } else if (val < 1.5) {
         return vec3(0.9, 0.8, 0.2); // Yellow for 1
     } else {
         return vec3(0.9, 0.2, 0.2); // Red for 2
@@ -487,12 +488,12 @@ vec3 getColor(vec2 p) {
                 float prevValue = currentValue;
                 
                 // Estimate previous value based on toggle logic (value cycles 0->1->2->0)
-                if (currentValue < 0.33) {
-                    prevValue = 0.67; // Was 2, now 0
-                } else if (currentValue < 0.67) {
+                if (currentValue < .5) {
+                    prevValue = 2.; // Was 2, now 0
+                } else if (currentValue < 1.5) {
                     prevValue = 0.0;  // Was 0, now 1
                 } else {
-                    prevValue = 0.33; // Was 1, now 2
+                    prevValue = 1.0; // Was 1, now 2
                 }
                 
                 vec3 previousColor = getBaseColor(prevValue);
@@ -796,8 +797,6 @@ public:
         if (activeEffects.size() > 8) {
             activeEffects.erase(activeEffects.begin());
         }
-        
-        std::cout << "Added 3D wave animation at (" << toggleX << ", " << toggleY << ")" << std::endl;
     }
 
     void clearAllEffects()
@@ -868,7 +867,7 @@ private:
             for (int x = 0; x < width; ++x) {
                 int index = (y * width + x) * 3;
                 textureData[index] = currentHeights[y][x];     // R: height
-                textureData[index + 1] = currentBoxState[y][x] / 2.0f; // G: cell value
+                textureData[index + 1] = (float)currentBoxState[y][x]; // G: cell value
                 textureData[index + 2] = 0.0f;                 // B: unused
             }
         }
@@ -1066,7 +1065,7 @@ bool openBox(SecureBox &box, bool useOpenGL)
         for (int x = 0; x < (int)width; ++x)
         {
             int index = y * width + x;
-            target[index] = (3 - currentState[y][x]) % 3;
+            target[index] = (-currentState[y][x] + 3) % 3;
         }
     }
 
