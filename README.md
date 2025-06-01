@@ -34,12 +34,7 @@ SecureBox represents a 2D grid puzzle where each cell has three states:
    cell D:         0           1           1           2
    ```
 
-3. **Toggle Rules**: toggle(x,y) increments by +1 (mod 3):
-   - All cells in column x (vertical effect)
-   - All cells in row y (horizontal effect)  
-   - Cell (x,y) gets additional +2, totaling +1 mod 3 (compensated double increment)
-
-4. **Target Vector**: Calculates how much to add to each cell to make it 0:
+3. **Target Vector**: Calculates how much to add to each cell to make it 0:
    ```
    Current state:    [1] [2] [0]
                      [2] [1] [1]
@@ -51,9 +46,9 @@ SecureBox represents a 2D grid puzzle where each cell has three states:
    - If cell = 1, add 2 → (1 + 2) % 3 = 0 ✓
    - If cell = 2, add 1 → (2 + 1) % 3 = 0 ✓
 
-5. **Solve**: Uses Gaussian elimination in GF(3) to find how many times to toggle each position
+4. **Solve**: Uses Gaussian elimination in GF(3) to find how many times to toggle each position
 
-6. **Execute**: Applies the calculated toggles step-by-step until all cells become 0 (unlocked)
+5. **Execute**: Applies the calculated toggles step-by-step until all cells become 0 (unlocked)
 
 
 ## 🚀 Quick Start
