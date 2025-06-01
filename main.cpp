@@ -196,7 +196,7 @@ std::vector<int> solveLinearSystem(std::vector<std::vector<int>> matrix, std::ve
             {
                 int factor = matrix[i][col];
                 for (int j = col; j <= m; ++j)
-                    matrix[i][j] = (matrix[i][j] - factor * matrix[row][j] + 9) % 3;
+                    matrix[i][j] = (matrix[i][j] - factor * matrix[row][j] + 9) % 3; // mod can be negative so add 9 to guarantee positive result
             }
         }
         row++;
@@ -229,15 +229,6 @@ void clearScreen()
     std::cout.flush();
 }
 
-void setColor(const std::string &colorCode)
-{
-    std::cout << colorCode;
-}
-
-void resetColor()
-{
-    std::cout << "\033[0m";
-}
 
 const std::string RED = "\033[31m";
 const std::string GREEN = "\033[32m";
@@ -267,14 +258,14 @@ void displayBoxConsole(const SecureBox &box, const std::string &title = "SecureB
         std::cout << std::setw(2) << y << " ";
         for (uint32_t x = 0; x < box.getWidth(); ++x)
         {
-            uint8_t value = state[y][x];
+            int value = static_cast<int>(state[y][x]);
 
             if (value == 0)
-                std::cout << GREEN << "[" << (int)value << "]" << RESET;
+                std::cout << GREEN << "[" << value << "]" << RESET;
             else if (value == 1)
-                std::cout << YELLOW << "[" << (int)value << "]" << RESET;
+                std::cout << YELLOW << "[" << value << "]" << RESET;
             else
-                std::cout << RED << "[" << (int)value << "]" << RESET;
+                std::cout << RED << "[" << value << "]" << RESET;
         }
         std::cout << "\n";
     }
@@ -870,7 +861,7 @@ private:
                 int flippedY = height - 1 - y;
                 int index = (flippedY * width + x) * 3;
                 textureData[index] = currentHeights[y][x];     // R: height
-                textureData[index + 1] = (float)currentBoxState[y][x]; // G: cell value
+                textureData[index + 1] = static_cast<float>(currentBoxState[y][x]); // G: cell value
                 textureData[index + 2] = 0.0f;                 // B: unused
             }
         }
@@ -890,8 +881,8 @@ private:
         
         // Set uniforms
         glUniform1f(glGetUniformLocation(shaderProgram, "iTime"), currentTime);
-        glUniform2f(glGetUniformLocation(shaderProgram, "iResolution"), (float)windowWidth, (float)windowHeight);
-        glUniform2f(glGetUniformLocation(shaderProgram, "gridSize"), (float)currentBoxState[0].size(), (float)currentBoxState.size());
+        glUniform2f(glGetUniformLocation(shaderProgram, "iResolution"), static_cast<float>(windowWidth), static_cast<float>(windowHeight));
+        glUniform2f(glGetUniformLocation(shaderProgram, "gridSize"), static_cast<float>(currentBoxState[0].size()), static_cast<float>(currentBoxState.size()));
         
         // Bind height texture
         glActiveTexture(GL_TEXTURE0);
@@ -899,7 +890,7 @@ private:
         glUniform1i(glGetUniformLocation(shaderProgram, "heightMap"), 0);
         
         // Set effect uniforms
-        int numEffects = std::min((int)activeEffects.size(), 10);
+        int numEffects = std::min(static_cast<int>(activeEffects.size()), 10);
         glUniform1i(glGetUniformLocation(shaderProgram, "numEffects"), numEffects);
         
         if (numEffects > 0) {
@@ -908,8 +899,8 @@ private:
             std::vector<float> durations(10, 1.0f);
             
             for (int i = 0; i < numEffects; ++i) {
-                positions[i * 2] = (float)activeEffects[i].toggleX;
-                positions[i * 2 + 1] = (float)currentBoxState.size() - 1 - activeEffects[i].toggleY; // Flip Y
+                positions[i * 2] = static_cast<float>(activeEffects[i].toggleX);
+                positions[i * 2 + 1] = static_cast<float>(currentBoxState.size()) - 1 - activeEffects[i].toggleY; // Flip Y
                 startTimes[i] = activeEffects[i].startTime;
                 durations[i] = activeEffects[i].duration;
             }
@@ -919,7 +910,7 @@ private:
             glUniform1fv(glGetUniformLocation(shaderProgram, "effectDurations"), 10, durations.data());
         }
         
-        glUniform2f(glGetUniformLocation(shaderProgram, "nextMovePos"), nextMovePos[0], (float)currentBoxState.size() - 1 - nextMovePos[1]); // Flip Y
+        glUniform2f(glGetUniformLocation(shaderProgram, "nextMovePos"), nextMovePos[0], static_cast<float>(currentBoxState.size()) - 1 - nextMovePos[1]); // Flip Y
         glUniform1i(glGetUniformLocation(shaderProgram, "hasNextMove"), hasNextMove ? 1 : 0);
 
         glBindVertexArray(VAO);
@@ -1044,19 +1035,19 @@ bool openBox(SecureBox &box, bool useOpenGL)
     // Create effect matrix and solve
     std::vector<std::vector<int>> effectMatrix(totalCells, std::vector<int>(totalCells, 0));
 
-    for (int toggleY = 0; toggleY < (int)height; ++toggleY)
+    for (int toggleY = 0; toggleY < height; ++toggleY)
     {
-        for (int toggleX = 0; toggleX < (int)width; ++toggleX)
+        for (int toggleX = 0; toggleX < width; ++toggleX)
         {
             int toggleIndex = toggleY * width + toggleX;
 
-            for (int y = 0; y < (int)height; ++y)
+            for (int y = 0; y < height; ++y)
             {
                 int cellIndex = y * width + toggleX;
                 effectMatrix[cellIndex][toggleIndex] = (effectMatrix[cellIndex][toggleIndex] + 1) % 3;
             }
 
-            for (int x = 0; x < (int)width; ++x)
+            for (int x = 0; x < width; ++x)
             {
                 int cellIndex = toggleY * width + x;
                 effectMatrix[cellIndex][toggleIndex] = (effectMatrix[cellIndex][toggleIndex] + 1) % 3;
@@ -1069,9 +1060,9 @@ bool openBox(SecureBox &box, bool useOpenGL)
 
     auto currentState = box.getState();
     std::vector<int> target(totalCells);
-    for (int y = 0; y < (int)height; ++y)
+    for (int y = 0; y < height; ++y)
     {
-        for (int x = 0; x < (int)width; ++x)
+        for (int x = 0; x < width; ++x)
         {
             int index = y * width + x;
             target[index] = (-currentState[y][x] + 3) % 3;
@@ -1087,9 +1078,9 @@ bool openBox(SecureBox &box, bool useOpenGL)
     };
     std::vector<Move> moves;
     
-    for (int y = 0; y < (int)height; ++y)
+    for (int y = 0; y < height; ++y)
     {
-        for (int x = 0; x < (int)width; ++x)
+        for (int x = 0; x < width; ++x)
         {
             int index = y * width + x;
             int toggleCount = solution[index];
