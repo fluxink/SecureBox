@@ -15,7 +15,46 @@ SecureBox represents a 2D grid puzzle where each cell has three states:
 - All cells in row y are incremented by 1 (mod 3)
 - All cells in column x are incremented by 1 (mod 3)
 
-**Solution Method:** The program uses linear algebra to solve the system of equations and find the optimal solution automatically.
+
+**Solution Method:** 
+1. **Model as System of Equations**: Each cell (i,j) represents an equation in Galois Field GF(3), where all arithmetic is done modulo 3
+
+2. **Effect Matrix**: Creates a lookup table showing how each possible toggle(x,y) affects every cell in the grid:
+   ```
+   Example for 2×2 grid:
+   Grid:        Possible toggles:
+   [A] [B]      toggle(0,0)  toggle(1,0)  toggle(0,1)  toggle(1,1)
+   [C] [D]      
+   
+   Effect Matrix:
+              toggle(0,0)  toggle(1,0)  toggle(0,1)  toggle(1,1)
+   cell A:         2           1           1           0
+   cell B:         1           2           0           1  
+   cell C:         1           0           2           1
+   cell D:         0           1           1           2
+   ```
+
+3. **Toggle Rules**: toggle(x,y) increments by +1 (mod 3):
+   - All cells in column x (vertical effect)
+   - All cells in row y (horizontal effect)  
+   - Cell (x,y) gets additional +2, totaling +1 mod 3 (compensated double increment)
+
+4. **Target Vector**: Calculates how much to add to each cell to make it 0:
+   ```
+   Current state:    [1] [2] [0]
+                     [2] [1] [1]
+   
+   Target vector:    [2] [1] [0]  ← what to add to get [0] [0] [0]
+                     [1] [2] [2]  ← what to add to get [0] [0] [0]
+   ```
+   - If cell = 0, add 0 → (0 + 0) % 3 = 0 ✓
+   - If cell = 1, add 2 → (1 + 2) % 3 = 0 ✓
+   - If cell = 2, add 1 → (2 + 1) % 3 = 0 ✓
+
+5. **Solve**: Uses Gaussian elimination in GF(3) to find how many times to toggle each position
+
+6. **Execute**: Applies the calculated toggles step-by-step until all cells become 0 (unlocked)
+
 
 ## 🚀 Quick Start
 
@@ -39,10 +78,9 @@ setup_vscode.bat
 ## 📁 Project Structure
 
 ```
-├── main.cpp                    # SecureBox solver with 3D visualization
+├── main.cpp                    # SecureBox solver with 3D 
 ├── hellowindow2.cpp            # Simple OpenGL example
 ├── CMakeLists.txt              # Build configuration
-├── shaders/example.glsl        # GLSL shaders for 3D rendering
 ├── glad/                       # OpenGL loader
 ```
 
@@ -75,23 +113,9 @@ g++ main.cpp -Iglad/include -I"C:\vcpkg\installed\x64-windows\include" glad/src/
 
 ## 🎨 Demonstration
 
-### Console Visualization
-<!-- Add your console GIF here -->
-*Console mode showing the automatic solving process with colored text output and step-by-step mathematical solution*
-
 ### 3D OpenGL Visualization  
-<!-- Add your OpenGL GIF here -->
-*3D animated visualization showing the solving algorithm in action with shader effects and smooth transitions*
+![3D Demo](media/OpenGL.gif)
 
-## 🧮 How It Works
-
-1. **Grid Generation**: Creates a random locked grid using pseudo-random toggle operations
-2. **Problem Analysis**: Converts the puzzle into a system of linear equations (mod 3)
-3. **Solution Calculation**: Uses linear algebra to find the optimal sequence of toggles
-4. **Visualization**: Shows the solution being applied step by step in both console and 3D modes
-5. **Verification**: Confirms that all cells are successfully unlocked
-
-The program demonstrates how mathematical puzzles can be solved algorithmically and visualized beautifully.
 
 ## 🔧 Requirements
 
