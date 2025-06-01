@@ -2,6 +2,11 @@
 
 SecureBox is a demonstration program that automatically solves a mathematical puzzle using linear algebra. The program generates a random locked grid and then calculates and visualizes the optimal solution step by step.
 
+## 🎨 Demonstration
+
+### 3D OpenGL Visualization  
+![3D Demo](media/OpenGL.gif)
+
 ## 🧮 What is SecureBox?
 
 SecureBox represents a 2D grid puzzle where each cell has three states:
@@ -50,6 +55,17 @@ SecureBox represents a 2D grid puzzle where each cell has three states:
 
 5. **Execute**: Applies the calculated toggles step-by-step until all cells become 0 (unlocked)
 
+## 🎯 Visualization Modes
+
+### Dual Mode (Default)
+- **Console**: Step-by-step text output showing the solving process
+- **3D OpenGL**: Real-time animated visualization with shader effects
+- **Interaction**: Press SPACE in the OpenGL window to advance to next step
+
+### Console Mode (`--console`)
+- Text-only interface with colored grid display
+- **Interaction**: Press ENTER to advance to next step
+- Shows the mathematical solving process step by step
 
 ## 🚀 Quick Start
 
@@ -70,26 +86,12 @@ securebox.exe 4 3 --console
 setup_vscode.bat
 ```
 
-## 📁 Project Structure
+## 🔧 Requirements
 
-```
-├── main.cpp                    # SecureBox solver with 3D 
-├── hellowindow2.cpp            # Simple OpenGL example
-├── CMakeLists.txt              # Build configuration
-├── glad/                       # OpenGL loader
-```
-
-## 🎯 Visualization Modes
-
-### Dual Mode (Default)
-- **Console**: Step-by-step text output showing the solving process
-- **3D OpenGL**: Real-time animated visualization with shader effects
-- **Interaction**: Press SPACE in the OpenGL window to advance to next step
-
-### Console Mode (`--console`)
-- Text-only interface with colored grid display
-- **Interaction**: Press ENTER to advance to next step
-- Shows the mathematical solving process step by step
+- **Windows 10/11**
+- **MinGW-w64** (GCC compiler)
+- **OpenGL 3.3+** support
+- **GLFW3** and **GLAD** (auto-installed by setup script)
 
 ## 🛠 Build Options
 
@@ -106,18 +108,14 @@ g++ main.cpp -Iglad/include -I"C:\vcpkg\installed\x64-windows\include" glad/src/
 -lglfw3dll -lgdi32 -lopengl32 -o securebox.exe 
 ```
 
-## 🎨 Demonstration
+## 📁 Project Structure
 
-### 3D OpenGL Visualization  
-![3D Demo](media/OpenGL.gif)
-
-
-## 🔧 Requirements
-
-- **Windows 10/11**
-- **MinGW-w64** (GCC compiler)
-- **OpenGL 3.3+** support
-- **GLFW3** and **GLAD** (auto-installed by setup script)
+```
+├── main.cpp                    # SecureBox solver with 3D 
+├── hellowindow2.cpp            # Simple OpenGL example
+├── CMakeLists.txt              # Build configuration
+├── glad/                       # OpenGL loader
+```
 
 ## 📖 More Information
 
