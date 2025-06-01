@@ -31,6 +31,6 @@ copy "C:\vcpkg\installed\x64-windows\bin\glfw3.dll" . >nul 2>&1
 
 echo Compilation completed successfully!
 echo Running program...
-securebox.exe
+securebox.exe 4 4
 
 pause
