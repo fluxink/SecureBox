@@ -141,10 +141,6 @@ private:
     }
 };
 
-//================================================================================
-// Matrix operations for Gaussian elimination over GF(3)
-//================================================================================
-
 int modInverse(int a, int mod)
 {
     for (int i = 1; i < mod; ++i)
@@ -158,14 +154,12 @@ std::vector<int> solveLinearSystem(std::vector<std::vector<int>> matrix, std::ve
     int n = matrix.size();
     int m = matrix[0].size();
 
-    // Augment matrix with target vector
     for (int i = 0; i < n; ++i)
         matrix[i].push_back(target[i]);
 
     // Gaussian elimination
     for (int col = 0, row = 0; col < m && row < n; ++col)
     {
-        // Find pivot
         int pivot = -1;
         for (int i = row; i < n; ++i)
         {
@@ -179,7 +173,6 @@ std::vector<int> solveLinearSystem(std::vector<std::vector<int>> matrix, std::ve
         if (pivot == -1)
             continue;
 
-        // Swap rows
         if (pivot != row)
             std::swap(matrix[pivot], matrix[row]);
 
@@ -202,7 +195,6 @@ std::vector<int> solveLinearSystem(std::vector<std::vector<int>> matrix, std::ve
         row++;
     }
 
-    // Extract solution
     std::vector<int> solution(m, 0);
     for (int i = 0; i < std::min(n, m); ++i)
     {
@@ -286,9 +278,6 @@ void waitForEnter(const std::string &message = "Press Enter to continue...")
     std::cin.get();
 }
 
-//================================================================================
-// Enhanced OpenGL implementation with improved visual effects
-//================================================================================
 
 class OpenGLRenderer
 {
@@ -310,7 +299,6 @@ private:
     std::vector<std::vector<float>> targetHeights;
     std::vector<std::vector<float>> currentHeights;
     
-    // Multiple animation effects
     struct AnimationEffect {
         int step;
         int toggleX, toggleY;
@@ -692,7 +680,6 @@ public:
             return false;
         }
 
-        // Create fullscreen quad
         float quadVertices[] = {
             -1.0f, -1.0f,
              1.0f, -1.0f,
@@ -710,7 +697,6 @@ public:
         glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
         glEnableVertexAttribArray(0);
 
-        // Create height texture
         glGenTextures(1, &heightTexture);
         glBindTexture(GL_TEXTURE_2D, heightTexture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -726,7 +712,6 @@ public:
     {
         currentBoxState = box.getState();
         
-        // Initialize height arrays if needed
         if (targetHeights.empty()) {
             targetHeights.resize(currentBoxState.size());
             currentHeights.resize(currentBoxState.size());
@@ -736,7 +721,6 @@ public:
             }
         }
         
-        // Update target heights
         for (size_t y = 0; y < currentBoxState.size(); ++y) {
             for (size_t x = 0; x < currentBoxState[y].size(); ++x) {
                 targetHeights[y][x] = currentBoxState[y][x] / 2.0f;
@@ -753,7 +737,6 @@ public:
         auto elapsed = std::chrono::duration_cast<std::chrono::microseconds>(currentTimePoint - startTime);
         currentTime = elapsed.count() / 1000000.0f;
         
-        // Animate heights towards targets
         if (!currentHeights.empty()) {
             bool changed = false;
             for (size_t y = 0; y < currentHeights.size(); ++y) {
@@ -879,7 +862,6 @@ private:
 
         glUseProgram(shaderProgram);
         
-        // Set uniforms
         glUniform1f(glGetUniformLocation(shaderProgram, "iTime"), currentTime);
         glUniform2f(glGetUniformLocation(shaderProgram, "iResolution"), static_cast<float>(windowWidth), static_cast<float>(windowHeight));
         glUniform2f(glGetUniformLocation(shaderProgram, "gridSize"), static_cast<float>(currentBoxState[0].size()), static_cast<float>(currentBoxState.size()));
@@ -889,7 +871,6 @@ private:
         glBindTexture(GL_TEXTURE_2D, heightTexture);
         glUniform1i(glGetUniformLocation(shaderProgram, "heightMap"), 0);
         
-        // Set effect uniforms
         int numEffects = std::min(static_cast<int>(activeEffects.size()), 10);
         glUniform1i(glGetUniformLocation(shaderProgram, "numEffects"), numEffects);
         
@@ -1011,7 +992,6 @@ bool openBox(SecureBox &box, bool useOpenGL)
         }
     }
 
-    // Always show initial console state
     clearScreen();
     displayBoxConsole(box, "Initial SecureBox State");
     
@@ -1032,7 +1012,6 @@ bool openBox(SecureBox &box, bool useOpenGL)
         waitForEnter("Press Enter to start solving...");
     }
 
-    // Create effect matrix and solve
     std::vector<std::vector<int>> effectMatrix(totalCells, std::vector<int>(totalCells, 0));
 
     for (int toggleY = 0; toggleY < height; ++toggleY)
@@ -1113,21 +1092,18 @@ bool openBox(SecureBox &box, bool useOpenGL)
         std::cout << "Press SPACE in OpenGL window to apply next toggle" << std::endl;
         std::cout << std::string(50, '=') << std::endl;
         
-        // Main interaction loop with console updates
         while (currentMove < moves.size() && !renderer->shouldCloseWindow())
         {
             if (currentMove < moves.size()) {
                 renderer->setNextMove(moves[currentMove].x, moves[currentMove].y);
             }
             
-            // Render frame and check for input
             renderer->renderFrame();
             
             if (renderer->checkSpacePressed())
             {
                 auto& move = moves[currentMove];
                 
-                // Clear and show console state before toggle
                 clearScreen();
                 std::cout << BOLD << YELLOW << "Step " << step << ": Applying Toggle(" << move.x << ", " << move.y << ")" << RESET << std::endl;
                 std::cout << "Move " << (currentMove + 1) << " of " << moves.size() << std::endl;
@@ -1135,14 +1111,11 @@ bool openBox(SecureBox &box, bool useOpenGL)
                 
                 displayBoxConsole(box, "State BEFORE Toggle");
                 
-                // Add animation effect (non-blocking)
                 renderer->addAnimationEffect(step, move.x, move.y, 1.5f);
                 
-                // Apply toggle
                 box.toggle(move.x, move.y);
                 renderer->updateBoxState(box);
                 
-                // Show state after toggle
                 displayBoxConsole(box, "State AFTER Toggle");
                 
                 if (!box.isLocked())
@@ -1181,7 +1154,6 @@ bool openBox(SecureBox &box, bool useOpenGL)
     }
     else
     {
-        // Console-only mode
         std::cout << "\n" << BOLD << CYAN << "=== CONSOLE-ONLY MODE ===" << RESET << std::endl;
         std::cout << "Applying solution step by step..." << std::endl;
         std::cout << std::string(40, '=') << std::endl;
@@ -1269,7 +1241,6 @@ int main(int argc, char *argv[])
 
     bool state = openBox(box, useOpenGL);
 
-    // Always show final console state
     clearScreen();
     std::cout << BOLD << CYAN << "=== FINAL RESULT ===" << RESET << std::endl;
     displayBoxConsole(box, "Final SecureBox State");

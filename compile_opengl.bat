@@ -17,7 +17,7 @@ if not exist glad\include\glad\gl.h (
 
 REM Compilation
 echo Compiling...
-g++ hellowindow2.cpp -Iglad/include -I"C:\vcpkg/installed/x64-windows/include" glad/src/gl.c -L"C:\vcpkg/installed/x64-windows/lib" -lglfw3dll -lgdi32 -lopengl32 -o hellowindow2.exe
+g++ main.cpp -Iglad/include -I"C:\vcpkg/installed/x64-windows/include" glad/src/gl.c -L"C:\vcpkg/installed/x64-windows/lib" -lglfw3dll -lgdi32 -lopengl32 -o securebox.exe
 
 if %ERRORLEVEL% NEQ 0 (
     echo Compilation error!
@@ -31,6 +31,6 @@ copy "C:\vcpkg\installed\x64-windows\bin\glfw3.dll" . >nul 2>&1
 
 echo Compilation completed successfully!
 echo Running program...
-hellowindow2.exe
+securebox.exe
 
 pause
